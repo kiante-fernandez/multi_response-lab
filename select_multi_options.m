@@ -20,9 +20,9 @@ mainScreenNum = max(allScreenNums);
 
 % PsychDefaultSetup(2) % to use 0-1 scale, 1 for 0-255 scale for RGB values
 
-PsychDebugWindowConfiguration % makes screen transparent to see errors when debugging
+%PsychDebugWindowConfiguration % makes screen transparent to see errors when debugging
 
-backgroundColor = [0 0 0]; % setting background color to black
+backgroundColor = [255 255 255]; % setting background color to black
 
 % open black full-screen window (called "w")
 w = PsychImaging('OpenWindow', mainScreenNum, backgroundColor); % add ', [0 0 500 300]' at end to make ...
@@ -37,9 +37,9 @@ Screen('BlendFunction', w, 'GL_SRC_ALPHA', 'GL_ONE_MINUS_SRC_ALPHA');
 xmid = round(wWidth/2); % horizontal midpoint of window 'w' in pixels
 ymid = round(wHeight/2); % vertical midpoint of window 'w' in pixels
 
-ListenChar(2) % suppresses keyboard input to Matlab windows
+ ListenChar(2) % suppresses keyboard input to Matlab windows
 
-textColor = [255 255 255]; % setting text color to white
+textColor = [0 0 0]; % setting text color to white
 
 Screen('TextSize', w, round(wHeight/50)); % text size
 Screen('TextFont', w, 'Helvetica');           % text font
@@ -48,16 +48,13 @@ Screen('TextStyle', w, 0) ;                % text style
 KbName('UnifyKeyNames'); % using standard keyboard names
 keyNumSpace = min(KbName('Space'));   %key number for SPACE key
 
+allRatings = zeros(60,1);
+
 %% introduction %%
 Screen('FillRect', w, backgroundColor); % clear visual buffer
 
-DrawFormattedText(w, "Before we begin, please close any unnecessary programs or applications on ..." + ...
-    "your computer.\nThis will help the study run more smoothly. Also, please close any..." + ...
-    " browser tabs that could produce popups \nor alerts that would interfere with..." + ...
-    " the study. \nFinally, once the study has started, DO NOT EXIT fullscreen mode ..." + ...
-    "or you will terminate \nthe study and not receive any payment. The study will switch..." + ...
-    " to full screen\n mode when you press the button below. \n\nWhen you are ready to begin, press" + ...
-    " the space bar.",'center', 'center', textColor);
+
+DrawFormattedText(w, 'Before we begin, please close any unnecessary programs or applications on your computer.\nThis will help the study run more smoothly. Also, please close any\nbrowser tabs that could produce popups or alerts that would interfere with the study.\nFinally, once the study has started, DO NOT EXIT\nfullscreen mode or you will terminate the study and not recieve any payment.\nThe study will switch to fullscreen when you press the button below.\nWhen you are ready to begin, press the spacebar. ','center', 'center', textColor);
 Screen('Flip', w) ;  % putting experiment instructions on screen
 RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
 KbPressWait(-1); % wait till space is pressed
@@ -68,9 +65,7 @@ Screen('FillRect',w,backgroundColor); % overwrite text and start with new screen
 
 %% Exposure %%
 
-DrawFormattedText(w, "To familiarize you with the set of snack foods in this study\n, we will..." + ...
-    " now briefly show you each one.\n\n Please press the SPACEBAR to begin." ,...
-    'center', 'center', textColor);
+DrawFormattedText(w, 'To familiarize you with the set of snack foods in this study, we\n will now briefly show you each one.\n\n Please press the SPACEBAR to begin.','center', 'center', textColor);
 Screen('Flip', w) ;  % putting experiment instructions on screen
 RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
 KbPressWait(-1); % wait till space is pressed
@@ -78,38 +73,46 @@ KbPressWait(-1); % wait till space is pressed
 RestrictKeysForKbCheck([]); % goes back to regarding all keys
 
 Screen('FillRect',w,backgroundColor); % overwrite text and start with new screen
-
+ 
 % Define the path to the folder containing images
-folderPath = '/Users/sumedhagoyal/Downloads/60foods';
+folderPath = 'images/60foods';
 
 % Get a list of all image files in the folder
-imageFiles = dir(fullfile(folderPath, '*.jpg')); % Change '*.jpg' to match your image file format
+imageFiles = ls(fullfile(folderPath, '*.jpg')); % Change '*.jpg' to match your image file format
+%fileList = strsplit(imageFiles);
+imageFileNames = cellstr(imageFiles);
+imageFileNames = imageFileNames(1:3);
 
 % Set the duration to display each image (in seconds)
 displayDuration = 0.75;
 
 try
-    % Loop through each image file
-    for i = 1:numel(imageFiles)
+    % Loop through each image  file
+    for i = 1:3
         % Load the image
-        img = imread(fullfile(folderPath, imageFiles(i).name));
-        
-        % Convert the image matrix to a Psychtoolbox texture
-        tex = Screen('MakeTexture', windowPtr, img);
-        
-        % Display the image in the center of the screen
-        Screen('DrawTexture', windowPtr, tex, [], CenterRectOnPoint(size(img, 2), size(img, 1), windowRect(3)/2, windowRect(4)/2));
-        Screen('Flip', windowPtr);
-        
-        % Pause for the specified duration
-        WaitSecs(displayDuration);
-        
-        % Close the texture
-        Screen('Close', tex);
-    end
-
-    % Close the Psychtoolbox window
-    sca
+        img = imread(fullfile(folderPath, imageFileNames{i}));
+ 
+    %    imshow(img);
+  
+         imgWidth = size(img, 2);
+         imgHeight = size(img, 1); 
+         xPos = (wWidth - imgWidth) / 2;
+         yPos = (wHeight - imgHeight) / 2;
+%         
+%         
+%         % Convert the image matrix to a Psychtoolbox texture
+         tex = Screen('MakeTexture', w, img);
+%         
+%         % Display the image in the center of the screen
+         Screen('DrawTexture', w, tex, [], [xPos yPos xPos+imgWidth yPos+imgHeight]);
+        Screen('Flip', w);
+%         
+%         % Pause for the specified duration
+         WaitSecs(displayDuration);
+%          
+%         % Close the texture
+         Screen('Close', tex);
+    end 
     
 catch
     % Close the Psychtoolbox window in case of an error
@@ -118,13 +121,211 @@ catch
 end
 
 
-% displaying thank you screen
-Screen('FillRect', w, 0);
-DrawFormattedText(w, 'Thank you!', 'center', 'center', 255); 
-Screen('Flip', w);
+Screen('FillRect', w, backgroundColor);
+
+
+%% RATINGS %%
+
+
+%%%% slider set up
+ifi = Screen('GetFlipInterval', w);
+% Get the centre coordinate of the window
+[xCenter, yCenter] = WindowCenter(w);
+sliderYpos = 0.8 * wHeight;
+
+% Our slider will span a proportion of the screens x dimension
+sliderLengthPix = wHeight/1.05;
+sliderHLengthPix = sliderLengthPix / 2;
+% Coordiantes of the sliders left and right ends
+leftEnd = [xCenter - sliderHLengthPix sliderYpos];
+rightEnd = [xCenter + sliderHLengthPix sliderYpos];
+sliderLineCoords = [leftEnd' rightEnd'];
+
+% Slider line thickness
+sliderLineWidth = 10;
+
+% Define colours
+red = [255 0 0];
+green = [0 255 0];
+blue = [0 0 255];
+grey = [128 128 128];
+
+% Here we set the initial position of the mouse to the centre of the screen
+SetMouse(xCenter, sliderYpos, w);
+
+% Make a base Rect relative to the size of the screen: this will be the
+% toggle we can slide on the slider
+dim = wHeight  / 25;
+hDim = dim / 4;
+baseRect = [0 0 dim dim];
+
+% We now set the toggles initial position at a random point on the slider
+sx = xCenter + (rand * 2 - 1) * sliderHLengthPix;
+centeredRect = CenterRectOnPointd(baseRect, sx, sliderYpos);
+
+% Text labels for the slider scale
+sliderLabels = {'Not at all', 'Very much'};
+
+% Get bounding boxes for the slider label text
+textBoundsAll = nan(2, 4);
+for i = 1:2
+    [~, ~, textBoundsAll(i, :)] = DrawFormattedText(w, sliderLabels{i}, 0, 0, textColor);
+end
+
+% Width and height of the text
+textWidths = textBoundsAll(:, 3)';
+halfTextWidths = textWidths / 2;
+textHeights = range([textBoundsAll(:, 2) textBoundsAll(:, 4)], 2)';
+halfTextHeights = textHeights / 2;
+
+% Position of the text so that it is at the ends of the slider but does
+% not overlap with the slider line or silder toggle. Make sure it is also
+% centered in the y dimension of the screen. To do this we used the bounding
+% boxes of the text, plus a little gap so that the text does not completely
+% edge the slider toggle in the x dimension
+textPixGap = 10;
+leftTextPosX = xCenter - sliderHLengthPix - hDim - textWidths(1) - textPixGap;
+rightTextPosX = xCenter + sliderHLengthPix + hDim + textPixGap;
+
+leftTextPosY = sliderYpos + halfTextHeights(1);
+rightTextPosY = sliderYpos + halfTextHeights(2);
+
+continueRectYpos = 0.9 * wHeight;
+continueDim = wHeight / 30;
+continueHDim = continueDim / 4;
+continueRect = [0 0 continueDim continueDim];
+
+% Offset toggle. This determines if the offset between the mouse and centre
+% of the square has been set. We use this so that we can move the position
+% of the square around the screen without it "snapping" its centre to the
+% position of the mouse
+offsetSet = 0;
+
+% Number of frames to wait before updating the screen
+waitframes = 1;
+
+
+%%%%%%%%%%%%%%% getting ratings
+DrawFormattedText(w, 'Rating task', 'center', 'center', textColor); 
+Screen('Flip', w) ;  % putting experiment instructions on screen
+keyCode = zeros(1, 256);
+% checking for 'space' to be pressed to exit the thank you screen 
+while sum(sum(keyCode(keyNumSpace))) < 1
+    [~, ~, keyCode] = KbCheck(-1);
+end
+
+try
+    % Loop through each image  file
+    for i = 1:3
+        % Load the image
+        img = imread(fullfile(folderPath, imageFileNames{i}));
+  
+         imgWidth = size(img, 2);
+         imgHeight = size(img, 1); 
+         xPos = (wWidth - imgWidth) / 2;
+         yPos = (wHeight - imgHeight) / 2;
+        
+         % Convert the image matrix to a Psychtoolbox texture
+         tex = Screen('MakeTexture', w, img);
+
+         % Sync us and get a time stamp. We blank the window first to remove the
+         % text that we drew to get the bounding boxes.
+        Screen('FillRect', w, backgroundColor) 
+        vbl = Screen('Flip', w);
+      
+        spacePressed = false;
+        % Loop the animation until a key is pressed
+
+
+            % Get the current position of the mouse
+            [mx, my, buttons] = GetMouse(w);
+
+            % Find the central position of the square
+            [cx, cy] = RectCenter(centeredRect);
+
+            % See if the mouse cursor is inside the square
+            inside = IsInRect(mx, my, centeredRect);
+
+            % If the mouse cursor is inside the square and a mouse button is being
+            % pressed and the offset has not been set, set the offset and signal
+            % that it has been set
+            if inside == 1 && sum(buttons) > 0 && offsetSet == 0
+                dx = mx - cx;
+                offsetSet = 1;
+            end
+
+            % If the person has clicked, yoke the square to the mouse cursor in its
+            % x dimension
+            if offsetSet
+                sx = mx - dx;
+            end
+
+            % Restrict the x position to be on the slider
+            if sx > xCenter + sliderHLengthPix
+                sx = xCenter + sliderHLengthPix;
+            elseif sx < xCenter - sliderHLengthPix
+                sx = xCenter - sliderHLengthPix;
+            end
+
+            % Center the slidre toggle on its new screen position
+            centeredRect = CenterRectOnPointd(baseRect, sx, sliderYpos);
+
+            % Draw the slider line
+            Screen('DrawLines', w, sliderLineCoords, sliderLineWidth, grey);
+
+            % Draw the rect to the screen
+            Screen('FillRect', w, grey, centeredRect);
+
+            % Text for the ends of the slider
+            DrawFormattedText(w, sliderLabels{1}, leftTextPosX, leftTextPosY, textColor);
+            DrawFormattedText(w, sliderLabels{2}, rightTextPosX, rightTextPosY, textColor);
+
+            % Display the image in the center of the screen
+            Screen('DrawTexture', w, tex, [], [xPos yPos xPos+imgWidth yPos+imgHeight]);
+
+            % Report the current coolness % rating: coloring the text according to
+            % the coolness
+            currentRating = (sx - (xCenter - sliderHLengthPix)) / sliderLengthPix;
+            allRatings(i) = currentRating;
+
+            % Draw a white dot where the mouse cursor is
+            %Screen('DrawDots', w, [mx my], 10, textColor, [], 2);
+
+            % Flip to the screen
+            vbl  = Screen('Flip', w, vbl + (waitframes - 0.5) * ifi);
+
+
+            keyCode = zeros(1, 256);
+            % checking for 'space' to be pressed to exit the thank you screen 
+            while sum(sum(keyCode(keyNumSpace))) < 1
+                [~, ~, keyCode] = KbCheck(-1);
+            end
+            spacePressed = true;
+
+            % Check to see if the mouse button has been released and if so reset
+            % the offset cue
+            if sum(buttons) <= 0
+                offsetSet = 0;
+            end
+
+
+
+%         % Close the texture
+         Screen('Close', tex);
+    end 
+    
+catch
+    % Close the Psychtoolbox window in case of an error
+    sca
+    psychrethrow(psychlasterror);
+end
 
 %% EXIT %%
 
+% displaying thank you screen
+Screen('FillRect', w, backgroundColor);
+DrawFormattedText(w, 'Thank you!', 'center', 'center', textColor ); 
+Screen('Flip', w);
 keyCode = zeros(1, 256);
 % checking for 'space' to be pressed to exit the thank you screen 
 while sum(sum(keyCode(keyNumSpace))) < 1
@@ -133,3 +334,7 @@ end
 
 sca % close psychtoolbox windows
 ListenChar(1); % restore keyboard input
+
+
+
+
