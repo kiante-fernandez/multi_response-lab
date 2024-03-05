@@ -49,6 +49,7 @@ KbName('UnifyKeyNames'); % using standard keyboard names
 keyNumSpace = min(KbName('Space'));   %key number for SPACE key
 
 allRatings = zeros(60,1);
+responseTimes = zeros(60, 1);
 
 %% introduction %%
 Screen('FillRect', w, backgroundColor); % clear visual buffer
@@ -81,7 +82,7 @@ folderPath = 'images/60foods';
 imageFiles = ls(fullfile(folderPath, '*.jpg')); % Change '*.jpg' to match your image file format
 %fileList = strsplit(imageFiles);
 imageFileNames = cellstr(imageFiles);
-imageFileNames = imageFileNames(1:3);
+%imageFileNames = imageFileNames(1:60);
 
 % Set the duration to display each image (in seconds)
 displayDuration = 0.75;
@@ -147,7 +148,7 @@ sliderLineWidth = 10;
 % Define colours
 red = [255 0 0];
 green = [0 255 0];
-blue = [0 0 255];
+blue = [173 216 230];
 grey = [128 128 128];
 
 % Here we set the initial position of the mouse to the centre of the screen
@@ -155,7 +156,7 @@ SetMouse(xCenter, sliderYpos, w);
 
 % Make a base Rect relative to the size of the screen: this will be the
 % toggle we can slide on the slider
-dim = wHeight  / 25;
+dim = wHeight  / 30 ;
 hDim = dim / 4;
 baseRect = [0 0 dim dim];
 
@@ -191,9 +192,21 @@ leftTextPosY = sliderYpos + halfTextHeights(1);
 rightTextPosY = sliderYpos + halfTextHeights(2);
 
 continueRectYpos = 0.9 * wHeight;
-continueDim = wHeight / 30;
-continueHDim = continueDim / 4;
-continueRect = [0 0 continueDim continueDim];
+% Define rectangle parameters
+rectWidth = 120; % Width of the rectangle
+rectHeight = 40; % Height of the rectangle
+topExtension = 5; % Extension length for top and bottom sides
+
+% Calculate coordinates for top-left and bottom-right corners
+topLeftX = xCenter - rectWidth/2;
+topLeftY = yCenter - rectHeight/2 - topExtension;
+bottomRightX = xCenter + rectWidth/2;
+bottomRightY = yCenter + rectHeight/2 + topExtension;
+
+continueRect = [topLeftX, topLeftY,  bottomRightX, bottomRightY];
+
+continueRect = CenterRectOnPointd(continueRect, xCenter, continueRectYpos);
+
 
 % Offset toggle. This determines if the offset between the mouse and centre
 % of the square has been set. We use this so that we can move the position
@@ -204,120 +217,120 @@ offsetSet = 0;
 % Number of frames to wait before updating the screen
 waitframes = 1;
 
+% Define the range of numbers
+rangeStart = 1;
+rangeEnd = 60;
+
+% Generate a random permutation of numbers from 1 to 60
+randomizedArray = randperm(rangeEnd - rangeStart + 1) + rangeStart - 1;
+
 
 %%%%%%%%%%%%%%% getting ratings
 DrawFormattedText(w, 'Rating task', 'center', 'center', textColor); 
 Screen('Flip', w) ;  % putting experiment instructions on screen
-keyCode = zeros(1, 256);
-% checking for 'space' to be pressed to exit the thank you screen 
-while sum(sum(keyCode(keyNumSpace))) < 1
-    [~, ~, keyCode] = KbCheck(-1);
-end
+RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
+KbPressWait(-1); % wait till space is pressed
 
-try
-    % Loop through each image  file
-    for i = 1:3
-        % Load the image
-        img = imread(fullfile(folderPath, imageFileNames{i}));
-  
-         imgWidth = size(img, 2);
-         imgHeight = size(img, 1); 
-         xPos = (wWidth - imgWidth) / 2;
-         yPos = (wHeight - imgHeight) / 2;
-        
-         % Convert the image matrix to a Psychtoolbox texture
-         tex = Screen('MakeTexture', w, img);
+ 
+%% displaying ratings
 
-         % Sync us and get a time stamp. We blank the window first to remove the
-         % text that we drew to get the bounding boxes.
-        Screen('FillRect', w, backgroundColor) 
-        vbl = Screen('Flip', w);
-      
-        spacePressed = false;
-        % Loop the animation until a key is pressed
+for i = 1:3
+    img = imread(fullfile(folderPath, imageFileNames{randomizedArray(i)}));
 
+    imgWidth = size(img, 2);
+    imgHeight = size(img, 1);
+    xPosR = (wWidth - imgWidth) / 2;
+    yPosR = (wHeight - imgHeight) / 2;
 
-            % Get the current position of the mouse
-            [mx, my, buttons] = GetMouse(w);
+    % Convert the image matrix to a Psychtoolbox texture
+    texR = Screen('MakeTexture', w, img);
 
-            % Find the central position of the square
-            [cx, cy] = RectCenter(centeredRect);
+    % Sync us and get a time stamp. We blank the window first to remove the
+    % text that we drew to get the bounding boxes.
+    Screen('FillRect', w, backgroundColor)
+    vbl = Screen('Flip', w);
 
-            % See if the mouse cursor is inside the square
-            inside = IsInRect(mx, my, centeredRect);
-
-            % If the mouse cursor is inside the square and a mouse button is being
-            % pressed and the offset has not been set, set the offset and signal
-            % that it has been set
-            if inside == 1 && sum(buttons) > 0 && offsetSet == 0
-                dx = mx - cx;
-                offsetSet = 1;
-            end
-
-            % If the person has clicked, yoke the square to the mouse cursor in its
-            % x dimension
-            if offsetSet
-                sx = mx - dx;
-            end
-
-            % Restrict the x position to be on the slider
-            if sx > xCenter + sliderHLengthPix
-                sx = xCenter + sliderHLengthPix;
-            elseif sx < xCenter - sliderHLengthPix
-                sx = xCenter - sliderHLengthPix;
-            end
-
-            % Center the slidre toggle on its new screen position
-            centeredRect = CenterRectOnPointd(baseRect, sx, sliderYpos);
-
-            % Draw the slider line
-            Screen('DrawLines', w, sliderLineCoords, sliderLineWidth, grey);
-
-            % Draw the rect to the screen
-            Screen('FillRect', w, grey, centeredRect);
-
-            % Text for the ends of the slider
-            DrawFormattedText(w, sliderLabels{1}, leftTextPosX, leftTextPosY, textColor);
-            DrawFormattedText(w, sliderLabels{2}, rightTextPosX, rightTextPosY, textColor);
-
-            % Display the image in the center of the screen
-            Screen('DrawTexture', w, tex, [], [xPos yPos xPos+imgWidth yPos+imgHeight]);
-
-            % Report the current coolness % rating: coloring the text according to
-            % the coolness
-            currentRating = (sx - (xCenter - sliderHLengthPix)) / sliderLengthPix;
-            allRatings(i) = currentRating;
-
-            % Draw a white dot where the mouse cursor is
-            %Screen('DrawDots', w, [mx my], 10, textColor, [], 2);
-
-            % Flip to the screen
-            vbl  = Screen('Flip', w, vbl + (waitframes - 0.5) * ifi);
-
-
-            keyCode = zeros(1, 256);
-            % checking for 'space' to be pressed to exit the thank you screen 
-            while sum(sum(keyCode(keyNumSpace))) < 1
-                [~, ~, keyCode] = KbCheck(-1);
-            end
-            spacePressed = true;
-
-            % Check to see if the mouse button has been released and if so reset
-            % the offset cue
-            if sum(buttons) <= 0
-                offsetSet = 0;
-            end
-
-
-
-%         % Close the texture
-         Screen('Close', tex);
-    end 
+    mousePressed = true; 
     
-catch
-    % Close the Psychtoolbox window in case of an error
-    sca
-    psychrethrow(psychlasterror);
+
+    while mousePressed
+
+        % Get the current position of the mouse
+
+        [mx, my, buttons] = GetMouse(w);
+
+        % Find the central position of the square
+        [cx, cy] = RectCenter(centeredRect);
+
+        % See if the mouse cursor is inside the square 
+        inside = IsInRect(mx, my, centeredRect);
+
+        % If the mouse cursor is inside the square and a mouse button is being
+        % pressed and the offset has not been set, set the offset and signal
+        % that it has been set
+        if inside == 1 && sum(buttons) > 0 && offsetSet == 0
+            dx = mx - cx;
+            offsetSet = 1;
+        end
+
+        % If the person has clicked, yoke the square to the mouse cursor in its
+        % x dimension
+        if offsetSet
+            sx = mx - dx;
+        end
+
+        % Restrict the x position to be on the slider 
+        if sx > xCenter + sliderHLengthPix
+            sx = xCenter + sliderHLengthPix;
+        elseif sx < xCenter - sliderHLengthPix
+            sx = xCenter - sliderHLengthPix;
+        end
+
+        % Center the slidre toggle on its new screen position
+        centeredRect = CenterRectOnPointd(baseRect, sx, sliderYpos);
+
+        % Draw the slider line
+        Screen('DrawLines', w, sliderLineCoords, sliderLineWidth, grey);
+
+        % Draw the rect to the screen
+        Screen('FillRect', w, grey, centeredRect);
+
+        Screen('FillRect', w, blue, continueRect);
+
+
+        % Text for the ends of the slider
+        DrawFormattedText(w, 'Continue', 'center', 'center',textColor, [], [], [], [], [], continueRect);
+        DrawFormattedText(w, sliderLabels{1}, leftTextPosX, leftTextPosY, textColor);
+        DrawFormattedText(w, sliderLabels{2}, rightTextPosX, rightTextPosY, textColor);
+
+        % Display the image in the center of the screen
+        Screen('DrawTexture', w, texR, [], [xPosR yPosR xPosR+imgWidth yPosR+imgHeight]);
+
+
+        % Flip to the screen
+        vbl = Screen('Flip', w, vbl + (waitframes - 0.5) * ifi);
+
+        % Check to see if the mouse button has been released and if so reset
+        % the offset cue
+        if sum(buttons) <= 0
+            offsetSet = 0;
+        end
+
+        if IsInRect(mx, my, continueRect)
+            if buttons(1) == 1
+                buttonPress = GetSecs;
+                currentRating = (sx - (xCenter - sliderHLengthPix)) / sliderLengthPix;
+                allRatings(i) = currentRating;
+                responseTimes(i) = GetSecs - vbl;
+                WaitSecs(0.2); 
+                mousePressed = false;
+            end
+        end
+
+
+    end
+    
+
 end
 
 %% EXIT %%
