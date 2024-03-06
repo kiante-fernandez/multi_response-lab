@@ -251,7 +251,9 @@ for i = 1:3
     vbl = Screen('Flip', w);
 
     mousePressed = true; 
-    
+    sx = xCenter + (rand * 2 - 1) * sliderHLengthPix;
+    centeredRect = CenterRectOnPointd(baseRect, sx, sliderYpos);
+
 
     while mousePressed
 
@@ -259,8 +261,10 @@ for i = 1:3
 
         [mx, my, buttons] = GetMouse(w);
 
+
         % Find the central position of the square
         [cx, cy] = RectCenter(centeredRect);
+        
 
         % See if the mouse cursor is inside the square 
         inside = IsInRect(mx, my, centeredRect);
@@ -333,17 +337,87 @@ for i = 1:3
 
 end
 
+
+%% select 3 out of 4 options
+DrawFormattedText(w, 'Selecting 3 options', 'center', 'center', textColor); 
+Screen('Flip', w) ;  % putting experiment instructions on screen
+RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
+KbPressWait(-1); % wait till space is pressed
+
+% Here we set the size of the arms of our fixation cross
+fixCrossDimPix = 40;
+
+black = [0 0 0];
+
+% Now we set the coordinates (these are all relative to zero we will let
+% the drawing routine center the cross in the center of our monitor for us)
+xCoords = [-fixCrossDimPix fixCrossDimPix 0 0];
+yCoords = [0 0 -fixCrossDimPix fixCrossDimPix];
+allCoords = [xCoords; yCoords];
+
+% Set the line width for our fixation cross
+lineWidthPix = 4;
+
+% Draw the fixation cross in white, set it to the center of our screen and
+% set good quality antialiasing
+Screen('DrawLines', w, allCoords,...
+    lineWidthPix, black, [xCenter yCenter], 2);
+
+% Flip to the screen
+Screen('Flip', w);
+WaitSecs(0.4);
+
+% selects 4 images to display
+rand4Img = randi([1, 60], 1, 4);
+
+% creating rects for the 4 images
+
+% top image
+topImg = imread(fullfile(folderPath, imageFileNames{rand4Img(1)}));
+[oTopImgHeight, oTopImgWidth, ~] = size(topImg);
+topImgHeight = round(oTopImgHeight * 0.5);
+topImgWidth = round(oTopImgWidth * 0.5);
+newSize = [topImgHeight, topImgWidth];
+topImg = imresize(topImg, newSize);
+
+topTex = Screen('MakeTexture', w, topImg);
+topXpos = (wWidth - topImgWidth) / 2;
+topYpos = 0.07 *wHeight;
+topRect = [topXpos topYpos topXpos+topImgWidth topYpos+topImgHeight];
+
+% right image
+
+% bottom image
+botImg = imread(fullfile(folderPath, imageFileNames{rand4Img(3)}));
+[oBotImgHeight, oBotImgWidth, ~] = size(botImg);
+botImgHeight = round(oBotImgHeight * 0.5);
+botImgWidth = round(oBotImgWidth * 0.5);
+newSize = [botImgHeight, botImgWidth];
+botImg = imresize(botImg, newSize);
+
+botTex = Screen('MakeTexture', w, botImg);
+botXpos = (wWidth - botImgWidth) / 2;
+botYpos = 0.7*wHeight;
+botRect = [botXpos botYpos botXpos+botImgWidth botYpos+botImgHeight];
+
+
+% left image
+
+
+% drawing all the images
+Screen('DrawTextures', w, topTex, [], topRect);
+Screen('DrawTextures', w, botTex, [], botRect);
+Screen('Flip', w); 
+WaitSecs(3);
+   
 %% EXIT %%
 
 % displaying thank you screen
 Screen('FillRect', w, backgroundColor);
 DrawFormattedText(w, 'Thank you!', 'center', 'center', textColor ); 
 Screen('Flip', w);
-keyCode = zeros(1, 256);
-% checking for 'space' to be pressed to exit the thank you screen 
-while sum(sum(keyCode(keyNumSpace))) < 1
-    [~, ~, keyCode] = KbCheck(-1);
-end
+RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
+KbPressWait(-1); % wait till space is pressed
 
 sca % close psychtoolbox windows
 ListenChar(1); % restore keyboard input
