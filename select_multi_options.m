@@ -37,7 +37,7 @@ Screen('BlendFunction', w, 'GL_SRC_ALPHA', 'GL_ONE_MINUS_SRC_ALPHA');
 xmid = round(wWidth/2); % horizontal midpoint of window 'w' in pixels
 ymid = round(wHeight/2); % vertical midpoint of window 'w' in pixels
 
- ListenChar(2) % suppresses keyboard input to Matlab windows
+ListenChar(2) % suppresses keyboard input to Matlab windows
 
 textColor = [0 0 0]; % setting text color to white
 
@@ -47,6 +47,10 @@ Screen('TextStyle', w, 0) ;                % text style
 
 KbName('UnifyKeyNames'); % using standard keyboard names
 keyNumSpace = min(KbName('Space'));   %key number for SPACE key
+keyNumJ = min(KbName('j'));
+keyNumI = min(KbName('i'));
+keyNumL = min(KbName('l'));
+keyNumK = min(KbName('k'));
 
 allRatings = zeros(60,1);
 responseTimes = zeros(60, 1);
@@ -249,6 +253,7 @@ for i = 1:3
     % text that we drew to get the bounding boxes.
     Screen('FillRect', w, backgroundColor)
     vbl = Screen('Flip', w);
+    %  maybe use tick tock here
 
     mousePressed = true; 
     sx = xCenter + (rand * 2 - 1) * sliderHLengthPix;
@@ -325,7 +330,10 @@ for i = 1:3
                 buttonPress = GetSecs;
                 currentRating = (sx - (xCenter - sliderHLengthPix)) / sliderLengthPix;
                 allRatings(i) = currentRating;
-                responseTimes(i) = GetSecs - vbl;
+                % to-do - make sure the image id is being collected along
+                % with the rating and response time
+                responseTimes(i) = GetSecs ; % tick tock
+
                 WaitSecs(0.2); 
                 mousePressed = false;
             end
@@ -368,7 +376,54 @@ Screen('Flip', w);
 WaitSecs(0.4);
 
 % selects 4 images to display
-rand4Img = randi([1, 60], 1, 4);
+% Define the size of the matrix
+rows = 50;
+cols = 4;
+total_elements = rows * cols;
+
+% Generate a pool of unique numbers from 1 to 60
+num_pool = repmat(1:60, 1, ceil(total_elements/60));
+num_pool = num_pool(randperm(length(num_pool)));
+
+% Create an empty matrix to store the numbers
+rand4Img = zeros(rows, cols);
+
+% Fill each column with unique numbers
+for j = 1:cols
+    % Determine the start and end indices for the current column
+    start_idx = (j - 1) * rows + 1;
+    end_idx = min(j * rows, length(num_pool));
+    
+    % Assign unique numbers to the current column
+    rand4Img(:, j) = num_pool(start_idx:end_idx)';
+end
+
+% Loop through each column
+for j = 1:cols
+    % Loop through each row
+    for i = 1:rows
+        % Check if the current position is already filled
+        if rand4Img(i, j) == 0
+            % Randomly select a number from the pool
+            if ~isempty(num_pool)
+                index = randi(length(num_pool));
+                % Check if the selected number has appeared less than 4 times
+                if sum(rand4Img(:) == num_pool(index)) < 4
+                    % Assign the number to the current position
+                    rand4Img(i, j) = num_pool(index);
+                    % Remove the assigned number from the pool
+                    num_pool(index) = [];
+                end
+            end
+        end
+    end
+end
+
+
+% rand4Img is a matrix where the columns are the items and each row is a
+% trial (100 rows x 4 columns)
+% should come from some function that takes the most liked images but for
+% now, an image shouldn't be shown more than 4 times
 
 % creating rects for the 4 images
 
@@ -377,23 +432,34 @@ topImg = imread(fullfile(folderPath, imageFileNames{rand4Img(1)}));
 [oTopImgHeight, oTopImgWidth, ~] = size(topImg);
 topImgHeight = round(oTopImgHeight * 0.5);
 topImgWidth = round(oTopImgWidth * 0.5);
-newSize = [topImgHeight, topImgWidth];
-topImg = imresize(topImg, newSize);
+newSizeT = [topImgHeight, topImgWidth];
+topImg = imresize(topImg, newSizeT);
 
 topTex = Screen('MakeTexture', w, topImg);
 topXpos = (wWidth - topImgWidth) / 2;
-topYpos = 0.07 *wHeight;
+topYpos = 0.07*wHeight;
 topRect = [topXpos topYpos topXpos+topImgWidth topYpos+topImgHeight];
 
 % right image
+rightImg = imread(fullfile(folderPath, imageFileNames{rand4Img(2)}));
+[oRightImgHeight, oRightImgWidth, ~] = size(rightImg);
+rightImgHeight = round(oRightImgHeight * 0.5);
+rightImgWidth = round(oRightImgWidth * 0.5);
+newSizeR = [rightImgHeight, rightImgWidth];
+rightImg = imresize(rightImg, newSizeR);
+
+rightTex = Screen('MakeTexture', w, rightImg);
+rightXpos = 0.2*wWidth;
+rightYpos = (wHeight - rightImgHeight) / 2;
+rightRect = [rightXpos rightYpos rightXpos+rightImgWidth rightYpos+rightImgHeight];
 
 % bottom image
 botImg = imread(fullfile(folderPath, imageFileNames{rand4Img(3)}));
 [oBotImgHeight, oBotImgWidth, ~] = size(botImg);
 botImgHeight = round(oBotImgHeight * 0.5);
 botImgWidth = round(oBotImgWidth * 0.5);
-newSize = [botImgHeight, botImgWidth];
-botImg = imresize(botImg, newSize);
+newSizeB = [botImgHeight, botImgWidth];
+botImg = imresize(botImg, newSizeB);
 
 botTex = Screen('MakeTexture', w, botImg);
 botXpos = (wWidth - botImgWidth) / 2;
@@ -402,19 +468,50 @@ botRect = [botXpos botYpos botXpos+botImgWidth botYpos+botImgHeight];
 
 
 % left image
+leftImg = imread(fullfile(folderPath, imageFileNames{rand4Img(4)}));
+[oLeftImgHeight, oLeftImgWidth, ~] = size(leftImg);
+leftImgHeight = round(oLeftImgHeight * 0.5);
+leftImgWidth = round(oLeftImgWidth * 0.5);
+newSizeL = [leftImgHeight, leftImgWidth];
+leftImg = imresize(leftImg, newSizeL);
+
+leftTex = Screen('MakeTexture', w, leftImg);
+leftXpos = 0.7*wWidth;
+leftYpos = (wHeight - leftImgHeight) / 2;
+leftRect = [leftXpos leftYpos leftXpos+leftImgWidth leftYpos+leftImgHeight];
 
 
 % drawing all the images
 Screen('DrawTextures', w, topTex, [], topRect);
 Screen('DrawTextures', w, botTex, [], botRect);
+Screen('DrawTextures', w, rightTex, [], rightRect);
+Screen('DrawTextures', w, leftTex, [], leftRect);
 Screen('Flip', w); 
-WaitSecs(3);
+
+
+counter = 0;
+keyCode = zeros(1, 256); % initalize keyCode vector
+
+
+while counter < 2
+    % checking if j,i,l,k were pressed
+    while ~keyCode(keyNumJ) && ~keyCode(keyNumI) && ~keyCode(keyNumL) && ~keyCode(keyNumK)
+        [~, ~, keyCode] = KbCheck(-1);
+    end
+    % now checking which one was pressed to draw orange frame around it
+    if keyCode(keyNumJ) == 1
+        participantResponses(1) = 1;
+    end
+end
+
+
+
    
 %% EXIT %%
 
 % displaying thank you screen
 Screen('FillRect', w, backgroundColor);
-DrawFormattedText(w, 'Thank you!', 'center', 'center', textColor ); 
+DrawFormattedText(w, 'Thank you!', 'center', 'center', textColor); 
 Screen('Flip', w);
 RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
 KbPressWait(-1); % wait till space is pressed
