@@ -52,8 +52,16 @@ keyNumI = min(KbName('i'));
 keyNumL = min(KbName('l'));
 keyNumK = min(KbName('k'));
 
+
+% Initialize image numbers
+imageNumbers = (1:60)';
+
+% Initialize empty arrays for ratings and response times
 allRatings = zeros(60,1);
 responseTimes = zeros(60, 1);
+
+% Create the table
+dataTable = table(imageNumbers, allRatings, responseTimes);
 
 %% introduction %%
 Screen('FillRect', w, backgroundColor); % clear visual buffer
@@ -240,7 +248,7 @@ KbPressWait(-1); % wait till space is pressed
 
 for i = 1:3
     img = imread(fullfile(folderPath, imageFileNames{randomizedArray(i)}));
-
+    currentImg = randomizedArray(i);
     imgWidth = size(img, 2);
     imgHeight = size(img, 1);
     xPosR = (wWidth - imgWidth) / 2;
@@ -329,7 +337,7 @@ for i = 1:3
             if buttons(1) == 1
                 buttonPress = GetSecs;
                 currentRating = (sx - (xCenter - sliderHLengthPix)) / sliderLengthPix;
-                allRatings(i) = currentRating;
+                dataTable.allRatings(currentImg) = currentRating;
                 % to-do - make sure the image id is being collected along
                 % with the rating and response time
                 responseTimes(i) = GetSecs ; % tick tock
@@ -366,14 +374,7 @@ allCoords = [xCoords; yCoords];
 % Set the line width for our fixation cross
 lineWidthPix = 4;
 
-% Draw the fixation cross in white, set it to the center of our screen and
-% set good quality antialiasing
-Screen('DrawLines', w, allCoords,...
-    lineWidthPix, black, [xCenter yCenter], 2);
-
-% Flip to the screen
-Screen('Flip', w);
-WaitSecs(0.4);
+orange = [255 95 31];
 
 % selects 4 images to display
 % Define the size of the matrix
@@ -425,95 +426,180 @@ end
 % should come from some function that takes the most liked images but for
 % now, an image shouldn't be shown more than 4 times
 
-% creating rects for the 4 images
+for i=1:3
 
-% top image
-topImg = imread(fullfile(folderPath, imageFileNames{rand4Img(1)}));
-[oTopImgHeight, oTopImgWidth, ~] = size(topImg);
-topImgHeight = round(oTopImgHeight * 0.5);
-topImgWidth = round(oTopImgWidth * 0.5);
-newSizeT = [topImgHeight, topImgWidth];
-topImg = imresize(topImg, newSizeT);
+    % showing fixation cross
+    Screen('DrawLines', w, allCoords,...
+        lineWidthPix, black, [xCenter yCenter], 2);
 
-topTex = Screen('MakeTexture', w, topImg);
-topXpos = (wWidth - topImgWidth) / 2;
-topYpos = 0.07*wHeight;
-topRect = [topXpos topYpos topXpos+topImgWidth topYpos+topImgHeight];
-
-% right image
-rightImg = imread(fullfile(folderPath, imageFileNames{rand4Img(2)}));
-[oRightImgHeight, oRightImgWidth, ~] = size(rightImg);
-rightImgHeight = round(oRightImgHeight * 0.5);
-rightImgWidth = round(oRightImgWidth * 0.5);
-newSizeR = [rightImgHeight, rightImgWidth];
-rightImg = imresize(rightImg, newSizeR);
-
-rightTex = Screen('MakeTexture', w, rightImg);
-rightXpos = 0.2*wWidth;
-rightYpos = (wHeight - rightImgHeight) / 2;
-rightRect = [rightXpos rightYpos rightXpos+rightImgWidth rightYpos+rightImgHeight];
-
-% bottom image
-botImg = imread(fullfile(folderPath, imageFileNames{rand4Img(3)}));
-[oBotImgHeight, oBotImgWidth, ~] = size(botImg);
-botImgHeight = round(oBotImgHeight * 0.5);
-botImgWidth = round(oBotImgWidth * 0.5);
-newSizeB = [botImgHeight, botImgWidth];
-botImg = imresize(botImg, newSizeB);
-
-botTex = Screen('MakeTexture', w, botImg);
-botXpos = (wWidth - botImgWidth) / 2;
-botYpos = 0.7*wHeight;
-botRect = [botXpos botYpos botXpos+botImgWidth botYpos+botImgHeight];
+    % Flip to the screen
+    Screen('Flip', w);
+    WaitSecs(0.4);
 
 
-% left image
-leftImg = imread(fullfile(folderPath, imageFileNames{rand4Img(4)}));
-[oLeftImgHeight, oLeftImgWidth, ~] = size(leftImg);
-leftImgHeight = round(oLeftImgHeight * 0.5);
-leftImgWidth = round(oLeftImgWidth * 0.5);
-newSizeL = [leftImgHeight, leftImgWidth];
-leftImg = imresize(leftImg, newSizeL);
+    % creating rects for the 4 images
 
-leftTex = Screen('MakeTexture', w, leftImg);
-leftXpos = 0.7*wWidth;
-leftYpos = (wHeight - leftImgHeight) / 2;
-leftRect = [leftXpos leftYpos leftXpos+leftImgWidth leftYpos+leftImgHeight];
+    % top image
+    topImg = imread(fullfile(folderPath, imageFileNames{rand4Img(i, 2)}));
+    [oTopImgHeight, oTopImgWidth, ~] = size(topImg);
+    topImgHeight = round(oTopImgHeight * 0.5);
+    topImgWidth = round(oTopImgWidth * 0.5);
+    newSizeT = [topImgHeight, topImgWidth];
+    topImg = imresize(topImg, newSizeT);
+
+    topTex = Screen('MakeTexture', w, topImg);
+    topXpos = (wWidth - topImgWidth) / 2;
+    topYpos = 0.07*wHeight;
+    topRect = [topXpos topYpos topXpos+topImgWidth topYpos+topImgHeight];
+
+    % right image
+    rightImg = imread(fullfile(folderPath, imageFileNames{rand4Img(i, 3)}));
+    [oRightImgHeight, oRightImgWidth, ~] = size(rightImg);
+    rightImgHeight = round(oRightImgHeight * 0.5);
+    rightImgWidth = round(oRightImgWidth * 0.5);
+    newSizeR = [rightImgHeight, rightImgWidth];
+    rightImg = imresize(rightImg, newSizeR);
+
+    rightTex = Screen('MakeTexture', w, rightImg);
+    rightXpos = 0.7*wWidth;
+    rightYpos = (wHeight - rightImgHeight) / 2;
+    rightRect = [rightXpos rightYpos rightXpos+rightImgWidth rightYpos+rightImgHeight];
+
+    % bottom image
+    botImg = imread(fullfile(folderPath, imageFileNames{rand4Img(i, 4)}));
+    [oBotImgHeight, oBotImgWidth, ~] = size(botImg);
+    botImgHeight = round(oBotImgHeight * 0.5);
+    botImgWidth = round(oBotImgWidth * 0.5);
+    newSizeB = [botImgHeight, botImgWidth];
+    botImg = imresize(botImg, newSizeB);
+
+    botTex = Screen('MakeTexture', w, botImg);
+    botXpos = (wWidth - botImgWidth) / 2;
+    botYpos = 0.7*wHeight;
+    botRect = [botXpos botYpos botXpos+botImgWidth botYpos+botImgHeight];
 
 
-% drawing all the images
-Screen('DrawTextures', w, topTex, [], topRect);
-Screen('DrawTextures', w, botTex, [], botRect);
-Screen('DrawTextures', w, rightTex, [], rightRect);
-Screen('DrawTextures', w, leftTex, [], leftRect);
-Screen('Flip', w); 
+    % left image
+    leftImg = imread(fullfile(folderPath, imageFileNames{rand4Img(i, 1)}));
+    [oLeftImgHeight, oLeftImgWidth, ~] = size(leftImg);
+    leftImgHeight = round(oLeftImgHeight * 0.5);
+    leftImgWidth = round(oLeftImgWidth * 0.5);
+    newSizeL = [leftImgHeight, leftImgWidth];
+    leftImg = imresize(leftImg, newSizeL);
+
+    leftTex = Screen('MakeTexture', w, leftImg);
+    leftXpos = 0.2*wWidth;
+    leftYpos = (wHeight - leftImgHeight) / 2;
+    leftRect = [leftXpos leftYpos leftXpos+leftImgWidth leftYpos+leftImgHeight];
 
 
-counter = 0;
-keyCode = zeros(1, 256); % initalize keyCode vector
+    % drawing all the images
+    Screen('DrawTextures', w, topTex, [], topRect);
+    Screen('DrawTextures', w, botTex, [], botRect);
+    Screen('DrawTextures', w, rightTex, [], rightRect);
+    Screen('DrawTextures', w, leftTex, [], leftRect);
+    Screen('Flip', w);
 
 
-while counter < 2
-    % checking if j,i,l,k were pressed
+    keyPressed = zeros(1, 4);
+    % J = 1, I = 2, L = 3, K = 4
+    % J = left, I = top, L = right, K = bottom
+
+    RestrictKeysForKbCheck([keyNumJ keyNumI keyNumL keyNumK]);
+
+    % checks first key press
+
+    keyCode = zeros(1, 256);
     while ~keyCode(keyNumJ) && ~keyCode(keyNumI) && ~keyCode(keyNumL) && ~keyCode(keyNumK)
         [~, ~, keyCode] = KbCheck(-1);
     end
-    % now checking which one was pressed to draw orange frame around it
-    if keyCode(keyNumJ) == 1
-        participantResponses(1) = 1;
+
+    if keyCode(keyNumJ)
+        keyPressed(1) = 1;
+        Screen('DrawTextures', w, topTex, [], topRect);
+        Screen('DrawTextures', w, botTex, [], botRect);
+        Screen('DrawTextures', w, rightTex, [], rightRect);
+        Screen('DrawTextures', w, leftTex, [], leftRect);
+        Screen('FrameRect', w, orange, leftRect, 4);
+        Screen('Flip', w);
+    elseif keyCode(keyNumI)
+        keyPressed(2) = 1;
+        Screen('DrawTextures', w, topTex, [], topRect);
+        Screen('DrawTextures', w, botTex, [], botRect);
+        Screen('DrawTextures', w, rightTex, [], rightRect);
+        Screen('DrawTextures', w, leftTex, [], leftRect);
+        Screen('FrameRect', w, orange, topRect, 4);
+        Screen('Flip', w);
+    elseif keyCode(keyNumL)
+        keyPressed(3) = 1;
+        Screen('DrawTextures', w, topTex, [], topRect);
+        Screen('DrawTextures', w, botTex, [], botRect);
+        Screen('DrawTextures', w, rightTex, [], rightRect);
+        Screen('DrawTextures', w, leftTex, [], leftRect);
+        Screen('FrameRect', w, orange, rightRect, 4);
+        Screen('Flip', w);
+    elseif keyCode(keyNumK)
+        keyPressed(4) = 1;
+        Screen('DrawTextures', w, topTex, [], topRect);
+        Screen('DrawTextures', w, botTex, [], botRect);
+        Screen('DrawTextures', w, rightTex, [], rightRect);
+        Screen('DrawTextures', w, leftTex, [], leftRect);
+        Screen('FrameRect', w, orange, botRect, 4);
+        Screen('Flip', w);
     end
+
+    RestrictKeysForKbCheck([]);
+    KbReleaseWait;
+
+    excludeKey = find(keyPressed);
+    restrictedKeys = [keyNumJ keyNumI keyNumL keyNumK];
+    restrictedKeys(excludeKey) = [];
+
+    keyCode2 = zeros(1, 256);
+    RestrictKeysForKbCheck(restrictedKeys);
+    while ~any(keyCode2(restrictedKeys))
+        [~, ~, keyCode2] = KbCheck(-1);
+    end
+
+    if keyCode2(keyNumJ) && ~keyPressed(1)
+        keyPressed(1) = 1;
+    elseif keyCode2(keyNumI) && ~keyPressed(2)
+        keyPressed(2) = 1;
+    elseif keyCode2(keyNumL) && ~keyPressed(3)
+        keyPressed(3) = 1;
+    elseif keyCode2 (keyNumK) && ~keyPressed(4)
+        keyPressed(4) = 1;
+    end
+
+    Screen('DrawTextures', w, topTex, [], topRect);
+    Screen('DrawTextures', w, botTex, [], botRect);
+    Screen('DrawTextures', w, rightTex, [], rightRect);
+    Screen('DrawTextures', w, leftTex, [], leftRect);
+
+    if keyPressed(1)
+        Screen('FrameRect', w, orange, leftRect, 4);
+    end
+    if keyPressed(2)
+        Screen('FrameRect', w, orange, topRect, 4);
+    end
+    if keyPressed(3)
+        Screen('FrameRect', w, orange, rightRect, 4);
+    end
+    if keyPressed(4)
+        Screen('FrameRect', w, orange, botRect, 4);
+    end
+
+    Screen('Flip', w);
+    WaitSecs(0.5);
+
 end
-
-
-
-   
 %% EXIT %%
 
 % displaying thank you screen
 Screen('FillRect', w, backgroundColor);
 DrawFormattedText(w, 'Thank you!', 'center', 'center', textColor); 
 Screen('Flip', w);
-RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
+RestrictKeysForKbCheck(keyNumSpace); % disregard all keys except space
 KbPressWait(-1); % wait till space is pressed
 
 sca % close psychtoolbox windows
