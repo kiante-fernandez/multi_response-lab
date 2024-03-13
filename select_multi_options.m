@@ -262,6 +262,7 @@ for i = 1:3
     Screen('FillRect', w, backgroundColor)
     vbl = Screen('Flip', w);
     %  maybe use tick tock here
+    tStart = tic;
 
     mousePressed = true; 
     sx = xCenter + (rand * 2 - 1) * sliderHLengthPix;
@@ -340,8 +341,7 @@ for i = 1:3
                 dataTable.allRatings(currentImg) = currentRating;
                 % to-do - make sure the image id is being collected along
                 % with the rating and response time
-                responseTimes(i) = GetSecs ; % tick tock
-
+                dataTable.responseTimes(currentImg) = toc(tStart);
                 WaitSecs(0.2); 
                 mousePressed = false;
             end
@@ -399,27 +399,38 @@ for j = 1:cols
     rand4Img(:, j) = num_pool(start_idx:end_idx)';
 end
 
-% Loop through each column
-for j = 1:cols
-    % Loop through each row
-    for i = 1:rows
-        % Check if the current position is already filled
-        if rand4Img(i, j) == 0
-            % Randomly select a number from the pool
-            if ~isempty(num_pool)
-                index = randi(length(num_pool));
-                % Check if the selected number has appeared less than 4 times
-                if sum(rand4Img(:) == num_pool(index)) < 4
-                    % Assign the number to the current position
-                    rand4Img(i, j) = num_pool(index);
-                    % Remove the assigned number from the pool
-                    num_pool(index) = [];
-                end
-            end
-        end
+% Ensure each row contains unique numbers
+for i = 1:rows
+    % Get unique numbers in the current row
+    unique_numbers = unique(rand4Img(i, :));
+    
+    % If the number of unique numbers is less than 4, fill the row
+    if numel(unique_numbers) < 4
+        % Numbers that are already present in the row
+        present_numbers = unique_numbers(unique_numbers ~= 0);
+        
+        % Numbers that are not present in the row
+        available_numbers = setdiff(1:60, present_numbers);
+        
+        % Shuffle the available numbers
+        available_numbers = available_numbers(randperm(length(available_numbers)));
+        
+        % Fill the remaining slots in the row with unique numbers
+        remaining_slots = 4 - numel(present_numbers);
+        rand4Img(i, (end-remaining_slots+1):end) = available_numbers(1:remaining_slots);
     end
 end
 
+
+% Initialize empty arrays for ratings and response times
+trials = (1:50)';
+firstFood = zeros(50, 1);
+firstResponse = zeros(50, 1);
+secondFood = zeros(50, 1);
+secondResponse = zeros(50, 1);
+
+% Create the table
+selectDataTable = table(trials, firstFood, firstResponse, secondFood, secondResponse);
 
 % rand4Img is a matrix where the columns are the items and each row is a
 % trial (100 rows x 4 columns)
@@ -435,7 +446,7 @@ for i=1:3
     % Flip to the screen
     Screen('Flip', w);
     WaitSecs(0.4);
-
+    selectStart = tic;
 
     % creating rects for the 4 images
 
@@ -513,9 +524,12 @@ for i=1:3
     while ~keyCode(keyNumJ) && ~keyCode(keyNumI) && ~keyCode(keyNumL) && ~keyCode(keyNumK)
         [~, ~, keyCode] = KbCheck(-1);
     end
-
+    
+    selectEnd = toc(selectStart);
+    selectDataTable.firstResponse(i) = selectEnd;
     if keyCode(keyNumJ)
         keyPressed(1) = 1;
+        selectDataTable.firstFood(i) = rand4Img(i, 1);
         Screen('DrawTextures', w, topTex, [], topRect);
         Screen('DrawTextures', w, botTex, [], botRect);
         Screen('DrawTextures', w, rightTex, [], rightRect);
@@ -524,6 +538,7 @@ for i=1:3
         Screen('Flip', w);
     elseif keyCode(keyNumI)
         keyPressed(2) = 1;
+        selectDataTable.firstFood(i) = rand4Img(i, 2);
         Screen('DrawTextures', w, topTex, [], topRect);
         Screen('DrawTextures', w, botTex, [], botRect);
         Screen('DrawTextures', w, rightTex, [], rightRect);
@@ -532,6 +547,7 @@ for i=1:3
         Screen('Flip', w);
     elseif keyCode(keyNumL)
         keyPressed(3) = 1;
+        selectDataTable.firstFood(i) = rand4Img(i, 3);
         Screen('DrawTextures', w, topTex, [], topRect);
         Screen('DrawTextures', w, botTex, [], botRect);
         Screen('DrawTextures', w, rightTex, [], rightRect);
@@ -540,6 +556,7 @@ for i=1:3
         Screen('Flip', w);
     elseif keyCode(keyNumK)
         keyPressed(4) = 1;
+        selectDataTable.firstFood(i) = rand4Img(i, 4);
         Screen('DrawTextures', w, topTex, [], topRect);
         Screen('DrawTextures', w, botTex, [], botRect);
         Screen('DrawTextures', w, rightTex, [], rightRect);
@@ -547,7 +564,8 @@ for i=1:3
         Screen('FrameRect', w, orange, botRect, 4);
         Screen('Flip', w);
     end
-
+    
+    select2Start = tic;
     RestrictKeysForKbCheck([]);
     KbReleaseWait;
 
@@ -560,15 +578,20 @@ for i=1:3
     while ~any(keyCode2(restrictedKeys))
         [~, ~, keyCode2] = KbCheck(-1);
     end
-
+    select2End = toc(select2Start);
+    selectDataTable.secondResponse(i) = select2End;
     if keyCode2(keyNumJ) && ~keyPressed(1)
         keyPressed(1) = 1;
+        selectDataTable.secondFood(i) = rand4Img(i, 1);
     elseif keyCode2(keyNumI) && ~keyPressed(2)
         keyPressed(2) = 1;
+        selectDataTable.secondFood(i) = rand4Img(i, 2);
     elseif keyCode2(keyNumL) && ~keyPressed(3)
         keyPressed(3) = 1;
+        selectDataTable.secondFood(i) = rand4Img(i, 3);
     elseif keyCode2 (keyNumK) && ~keyPressed(4)
         keyPressed(4) = 1;
+        selectDataTable.secondFood(i) = rand4Img(i, 4);
     end
 
     Screen('DrawTextures', w, topTex, [], topRect);
@@ -590,7 +613,7 @@ for i=1:3
     end
 
     Screen('Flip', w);
-    WaitSecs(0.5);
+    WaitSecs(0.3);
 
 end
 %% EXIT %%
