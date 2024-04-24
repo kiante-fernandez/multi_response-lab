@@ -65,14 +65,14 @@ dataTable = table(imageNumbers, allRatings, responseTimes);
 
 % if you want to do eye tracking, set this to one, otherwise, set it to
 % 0
-trackEye = 1;
+trackEye = 0;
 trialN = 3; % number of trials
 
 %% introduction %%
 Screen('FillRect', w, backgroundColor); % clear visual buffer
 
-
-DrawFormattedText(w, 'Before we begin, please close any unnecessary programs or applications on your computer.\nThis will help the study run more smoothly. Also, please close any\nbrowser tabs that could produce popups or alerts that would interfere with the study.\nFinally, once the study has started, DO NOT EXIT\nfullscreen mode or you will terminate the study and not recieve any payment.\nThe study will switch to fullscreen when you press the button below.\nWhen you are ready to begin, press the spacebar. ','center', 'center', textColor);
+textPrompt1 = 'Welcome to the study!\n\n\nUniversity of California, Los Angeles Consent to Participate in Research\n\nStudy Title: The dynamics of economic decision making\n\nProtocol Number:\n\nResearcher: Ian Krajbich \n\n Sponsor: University of California, Los Angeles\n\nThis is a consent form for research participation. It contains important information about this study and what to expect if you decide to participate.\n\nYour participation is voluntary.\n\nPurpose: The purpose of this study is to learn more about how people make economic decisions.\n\nProcedures/Tasks: You will make a series of decisions that may determine your compensation at the end of the study. You may be making decisions by yourself, or\nwith other participants. Your payment at the end of the study may therefore depend on your decisions, the decisions of others, and chance. You may also be asked to\nprovide basic demographic information and answer some questionnaires. We may ask to track your eye movements during this process. If so, at some point during the\nstudy we will ask for permission to turn on your webcam. This is required to complete the study. The only thing we will be recording with the webcam is where you\nappear to be looking on your computer screen. This data will simply consist of horizontal and vertical coordinates (i.e. two numbers). There will be a short calibration\nprocess before the study begins.\n\nDuration:\nOne session will be held now and the total duration of this session\n\nProviding consent:\nI have read (or someone has read to me) this page and I am aware that I am being asked to participate in a research study. I have had the opportunity to ask questions\nand have had them answered to my satisfaction. I voluntarily agree to participate in this study. I am not giving up any legal rights by agreeing to participate.\n\nTo print or save a copy of this page, select the print button on your web browser.\n\nPlease click the button below to proceed and participate in this study. If you do not wish to participate, please close out your browser window. Otherwise, please press the SPACEBAR to continue.';
+DrawFormattedText(w, textPrompt1, 'center', 'center', textColor);
 Screen('Flip', w) ;  % putting experiment instructions on screen
 RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
 KbPressWait(-1); % wait till space is pressed
@@ -81,10 +81,18 @@ RestrictKeysForKbCheck([]); % goes back to regarding all keys
 
 Screen('FillRect',w,backgroundColor); % overwrite text and start with new screen
 
+% getting subject number
+Screen('TextBounds', w, ' ');
+subjectID = GetEchoString(w, 'Please enter your PROLIFIC ID: ', 50, 100, textColor, backgroundColor, -1, 1);
+
+Screen('FillRect',w,backgroundColor); % overwrite text and start with new screen
+
+
 
 
 %% Exposure %%
 
+textPrompt = 'To familiarize you with the set of snack foods in this study, we\n will now briefly show you each one.\n\n Please press the SPACEBAR to begin.';
 DrawFormattedText(w, 'To familiarize you with the set of snack foods in this study, we\n will now briefly show you each one.\n\n Please press the SPACEBAR to begin.','center', 'center', textColor);
 Screen('Flip', w) ;  % putting experiment instructions on screen
 RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
@@ -552,35 +560,35 @@ selectDataTable = table(trials, firstFood, firstResponse, secondFood, secondResp
 % Check for drift (displays a dot at center, and corrects for any
 % drift. I recommend putting this at the beginning of every section, or
 % beginning of a block if you're doing blocks of trials.
-EyelinkDoDriftCorrection(el);
+% EyelinkDoDriftCorrection(el);
 
 
 for trial=1:trialN
 
-    % Write the trial number out to the experimenter's computer
-    % This isn't necessary, but it is nice to know whereabouts the
-    % subject is in the study
-    if trackEye == 1
-        Eyelink('command', 'record_status_message "SEARCH TRIAL %d/%d"', trial, trialN);
-
-        % put the headers into the eye tracking file
-        % Again, not necessary, but really nice to already have headers
-        if trial == 1
-            eyeLabel = '%s\t %s\t %s\t %s\t %s\n';
-            fprintf(eyeTrain1File, eyeLabel, ...
-                'subNum', 'trial', 'lookLeft', 'fixStart', 'fixEnd');
-        end
- 
-        % start recording eye position (preceded by a short pause so that
-        % the tracker can finish the mode transition)
-        % The paramerters for the 'StartRecording' call controls the
-        % file_samples, file_events, link_samples, link_events availability
-        Eyelink('Command', 'set_idle_mode');
-        WaitSecs(0.05);
-        Eyelink('StartRecording');
-        % record a few samples before we actually start displaying
-        % otherwise you may lose a few msec of data
-        WaitSecs(0.1);
+%     % Write the trial number out to the experimenter's computer
+%     % This isn't necessary, but it is nice to know whereabouts the
+%     % subject is in the study
+%     if trackEye == 1
+%         Eyelink('command', 'record_status_message "SEARCH TRIAL %d/%d"', trial, trialN);
+% 
+%         % put the headers into the eye tracking file
+%         % Again, not necessary, but really nice to already have headers
+%         if trial == 1
+%             eyeLabel = '%s\t %s\t %s\t %s\t %s\n';
+%             fprintf(eyeTrain1File, eyeLabel, ...
+%                 'subNum', 'trial', 'lookLeft', 'fixStart', 'fixEnd');
+%         end
+%  
+%         % start recording eye position (preceded by a short pause so that
+%         % the tracker can finish the mode transition)
+%         % The paramerters for the 'StartRecording' call controls the
+%         % file_samples, file_events, link_samples, link_events availability
+%         Eyelink('Command', 'set_idle_mode');
+%         WaitSecs(0.05);
+%         Eyelink('StartRecording');
+%         % record a few samples before we actually start displaying
+%         % otherwise you may lose a few msec of data
+%         WaitSecs(0.1);
 
 
     end
@@ -593,17 +601,17 @@ for trial=1:trialN
     WaitSecs(0.4);
     selectStart = tic;
 
-    % used for syncing time, This will print "synctime_part1" into
-    % the EDF at this timepoint. This is useful for keeping track
-    % in the edf of when a trial starts, and what part of the study
-    % it belongs to if you have several parts.
-    Eyelink('Message', 'SYNCTIME_part1');
-    % This is just telling us that the trial is valid (useful for
-    % if you recallibrate during a trial, in which case this will
-    % later be switched to 0 so you know to throw the trial out)
-    Eyelink('Message', '!V TRIAL_VAR VALID_TRIAL %d', 1);
-
-    eye_used = Eyelink('eyeavailable'); % get eye that's tracked
+%     % used for syncing time, This will print "synctime_part1" into
+%     % the EDF at this timepoint. This is useful for keeping track
+%     % in the edf of when a trial starts, and what part of the study
+%     % it belongs to if you have several parts.
+%     Eyelink('Message', 'SYNCTIME_part1');
+%     % This is just telling us that the trial is valid (useful for
+%     % if you recallibrate during a trial, in which case this will
+%     % later be switched to 0 so you know to throw the trial out)
+%     Eyelink('Message', '!V TRIAL_VAR VALID_TRIAL %d', 1);
+% 
+%     eye_used = Eyelink('eyeavailable'); % get eye that's tracked
 
     % creating rects for the 4 images
 
@@ -675,10 +683,10 @@ for trial=1:trialN
     % The final %s corresponds to the label string you give your
     % ROI. The examples below are two ROIs for the left and right
     % side of the screen.
-    Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 1,leftXpos, leftYpos, leftXpos+leftImgWidth, leftYpos+leftImgHeight, 'left');
-    Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 2, topXpos, topYpos, topXpos+topImgWidth, topYpos+topImgHeight, 'top');
-    Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 3, rightXpos, rightYpos, rightXpos+rightImgWidth, rightYpos+rightImgHeight, 'right');
-    Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 4, botXpos, botYpos, botXpos+botImgWidth ,botYpos+botImgHeight, 'bottom');
+%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 1,leftXpos, leftYpos, leftXpos+leftImgWidth, leftYpos+leftImgHeight, 'left');
+%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 2, topXpos, topYpos, topXpos+topImgWidth, topYpos+topImgHeight, 'top');
+%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 3, rightXpos, rightYpos, rightXpos+rightImgWidth, rightYpos+rightImgHeight, 'right');
+%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 4, botXpos, botYpos, botXpos+botImgWidth ,botYpos+botImgHeight, 'bottom');
 
 
     % drawing all the images
@@ -702,93 +710,93 @@ for trial=1:trialN
         % J = 1, I = 2, L = 3, K = 4
         % J = left, I = top, L = right, K = bottom
 
-        % Check recording status
-        err = Eyelink('CheckRecording');
-
-        if err ~= 0
-            error('checkrecording problem, status: %d', err);
-        end
-
-        % Check for new sample
-        status = Eyelink('NewFloatSampleAvailable');
-        if status >= 0
-            evt = Eyelink('NewestFloatSample');
-            % if we do, get current gaze position from sample
-            eyeX = evt.gx(eye_used+1); % +1 as we're accessing MATLAB array
-            eyeY = evt.gy(eye_used+1);
-            eyetime = GetSecs();
-
-            % Make sure that the data you're recording is even
-            % valid
-            if eyeX ~= el.MISSING_DATA && eyeY ~= el.MISSING_DATA && evt.pa(eye_used+1)>0
-
-                % See which ROI they're looking at - if they're
-                % outside of all roi's, it's counted as a -1
-                if eyeY >= leftYpos && eyeY <= leftYpos+leftImgHeight && eyeX >= leftXpos && eyeX <= leftXpos+leftImgWidth
-                    lookLeft = 1;
-                    lookRight = 0;
-                    lookUp = 0;
-                    lookDown = 0;
-                elseif eyeY >= topYpos && eyeY <= topYpos+topImgHeight && eyeX >= topXpos && eyeX <= topXpos+topImgWidth
-                    lookLeft = 0;
-                    lookRight = 0;
-                    lookUp = 1;
-                    lookDown = 0;
-                elseif eyeY >= rightYpos && eyeY <= rightYpos+rightImgHeight && eyeX >= rightXpos && eyeX <= rightXpos+rightImgWidth
-                    lookLeft = 0;
-                    lookRight = 1;
-                    lookUp = 0;
-                    lookDown = 0;
-                elseif eyeY >= botYpos && eyeY <= botYpos+botImgHeight && eyeX >= botXpos && eyeX <= botXpos+botImgWidth
-                    lookLeft = 0;
-                    lookRight = 0;
-                    lookUp = 0;
-                    lookDown = 1;
-                end
-
-                % START HERE AGAIN
-                % Making this independent of whether
-                % the eye was within an roi helps eliminate
-                % blinks
-                if lookLeft >= 0
-                    if lookLeft ~= prevLookLeft
-                        newFixStart = eyetime - searchOnset; % finds when the new dwell started
-                        if prevLookLeft == -1
-                            fixStart = eyetime - searchOnset; %like a default
-                        end
-                    else
-                        fixStart = newFixStart; % keeps the same fix start throughout the dwell
-                        fixEnd = eyetime - searchOnset; %updates every time, until they change rois
-                    end
-                end
-
-
-
-                % If they have completed the dwell, aka changed
-                % rois, then write down the previous fixation
-                % information into your own file. This is so that
-                % you have all your information in two places (the
-                % EDF and your matlab output). Hopefully you'll
-                % only need one.
-                if lookLeft ~= prevLookLeft && fixEnd ~= 0
-
-                    % Write out the eye data to a file as it's
-                    % happening, but only after a dwell has been
-                    % completed  - also it says
-                    % "prevLookLeft" here because we want
-                    % what they were just looking at, not
-                    % the roi they switched to
-                    eyeLabel = '%d\t %d\t %d\t %d\t %d\t %d\t %4.3f\t %4.3f\n';
-                    fprintf(eyeTrain1File, eyeLabel, ...
-                        subjectNumber, TrialNum, phase, probSide, tgtSide, prevLookLeft, ...
-                        fixStart, fixEnd);
-                end
-
-                % update the variables
-                prevLookLeft = lookLeft;
-
-            end
-        end
+%         % Check recording status
+%         err = Eyelink('CheckRecording');
+% 
+%         if err ~= 0
+%             error('checkrecording problem, status: %d', err);
+%         end
+% 
+%         % Check for new sample
+%         status = Eyelink('NewFloatSampleAvailable');
+%         if status >= 0
+%             evt = Eyelink('NewestFloatSample');
+%             % if we do, get current gaze position from sample
+%             eyeX = evt.gx(eye_used+1); % +1 as we're accessing MATLAB array
+%             eyeY = evt.gy(eye_used+1);
+%             eyetime = GetSecs();
+% 
+%             % Make sure that the data you're recording is even
+%             % valid
+%             if eyeX ~= el.MISSING_DATA && eyeY ~= el.MISSING_DATA && evt.pa(eye_used+1)>0
+% 
+%                 % See which ROI they're looking at - if they're
+%                 % outside of all roi's, it's counted as a -1
+%                 if eyeY >= leftYpos && eyeY <= leftYpos+leftImgHeight && eyeX >= leftXpos && eyeX <= leftXpos+leftImgWidth
+%                     lookLeft = 1;
+%                     lookRight = 0;
+%                     lookUp = 0;
+%                     lookDown = 0;
+%                 elseif eyeY >= topYpos && eyeY <= topYpos+topImgHeight && eyeX >= topXpos && eyeX <= topXpos+topImgWidth
+%                     lookLeft = 0;
+%                     lookRight = 0;
+%                     lookUp = 1;
+%                     lookDown = 0;
+%                 elseif eyeY >= rightYpos && eyeY <= rightYpos+rightImgHeight && eyeX >= rightXpos && eyeX <= rightXpos+rightImgWidth
+%                     lookLeft = 0;
+%                     lookRight = 1;
+%                     lookUp = 0;
+%                     lookDown = 0;
+%                 elseif eyeY >= botYpos && eyeY <= botYpos+botImgHeight && eyeX >= botXpos && eyeX <= botXpos+botImgWidth
+%                     lookLeft = 0;
+%                     lookRight = 0;
+%                     lookUp = 0;
+%                     lookDown = 1;
+%                 end
+% 
+%                 % START HERE AGAIN
+%                 % Making this independent of whether
+%                 % the eye was within an roi helps eliminate
+%                 % blinks
+%                 if lookLeft >= 0
+%                     if lookLeft ~= prevLookLeft
+%                         newFixStart = eyetime - searchOnset; % finds when the new dwell started
+%                         if prevLookLeft == -1
+%                             fixStart = eyetime - searchOnset; %like a default
+%                         end
+%                     else
+%                         fixStart = newFixStart; % keeps the same fix start throughout the dwell
+%                         fixEnd = eyetime - searchOnset; %updates every time, until they change rois
+%                     end
+%                 end
+% 
+% 
+% 
+%                 % If they have completed the dwell, aka changed
+%                 % rois, then write down the previous fixation
+%                 % information into your own file. This is so that
+%                 % you have all your information in two places (the
+%                 % EDF and your matlab output). Hopefully you'll
+%                 % only need one.
+%                 if lookLeft ~= prevLookLeft && fixEnd ~= 0
+% 
+%                     % Write out the eye data to a file as it's
+%                     % happening, but only after a dwell has been
+%                     % completed  - also it says
+%                     % "prevLookLeft" here because we want
+%                     % what they were just looking at, not
+%                     % the roi they switched to
+%                     eyeLabel = '%d\t %d\t %d\t %d\t %d\t %d\t %4.3f\t %4.3f\n';
+%                     fprintf(eyeTrain1File, eyeLabel, ...
+%                         subjectNumber, TrialNum, phase, probSide, tgtSide, prevLookLeft, ...
+%                         fixStart, fixEnd);
+%                 end
+% 
+%                 % update the variables
+%                 prevLookLeft = lookLeft;
+% 
+%             end
+%         end
 
         RestrictKeysForKbCheck([keyNumJ keyNumI keyNumL keyNumK]);
 
@@ -892,7 +900,7 @@ for trial=1:trialN
 
     end
 
-end
+
 %% EXIT %%
 
 % displaying thank you screen
