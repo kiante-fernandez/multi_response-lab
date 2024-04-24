@@ -6,6 +6,9 @@ rng shuffle % seed random number generator based on clock time
 close all   % close figure windows
 sca        % close PsychToolbox windows
 
+%hello
+
+
 % suppress PsychToolbox welcome screen
 Screen('Preference', 'VisualDebugLevel', 1);
 
@@ -66,7 +69,7 @@ dataTable = table(imageNumbers, allRatings, responseTimes);
 % if you want to do eye tracking, set this to one, otherwise, set it to
 % 0
 trackEye = 0;
-trialN = 3; % number of trials
+trialN = 60; % number of trials
 
 %% introduction %%
 Screen('FillRect', w, backgroundColor); % clear visual buffer
