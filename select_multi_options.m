@@ -74,7 +74,7 @@ trialN = 60; % number of trials
 %% introduction %%
 Screen('FillRect', w, backgroundColor); % clear visual buffer
 
-textPrompt1 = 'Welcome to the study!\n\n\nUniversity of California, Los Angeles Consent to Participate in Research\n\nStudy Title: The dynamics of economic decision making\n\nProtocol Number:\n\nResearcher: Ian Krajbich \n\n Sponsor: University of California, Los Angeles\n\nThis is a consent form for research participation. It contains important information about this study and what to expect if you decide to participate.\n\nYour participation is voluntary.\n\nPurpose: The purpose of this study is to learn more about how people make economic decisions.\n\nProcedures/Tasks: You will make a series of decisions that may determine your compensation at the end of the study. You may be making decisions by yourself, or\nwith other participants. Your payment at the end of the study may therefore depend on your decisions, the decisions of others, and chance. You may also be asked to\nprovide basic demographic information and answer some questionnaires. We may ask to track your eye movements during this process. If so, at some point during the\nstudy we will ask for permission to turn on your webcam. This is required to complete the study. The only thing we will be recording with the webcam is where you\nappear to be looking on your computer screen. This data will simply consist of horizontal and vertical coordinates (i.e. two numbers). There will be a short calibration\nprocess before the study begins.\n\nDuration:\nOne session will be held now and the total duration of this session\n\nProviding consent:\nI have read (or someone has read to me) this page and I am aware that I am being asked to participate in a research study. I have had the opportunity to ask questions\nand have had them answered to my satisfaction. I voluntarily agree to participate in this study. I am not giving up any legal rights by agreeing to participate.\n\nTo print or save a copy of this page, select the print button on your web browser.\n\nPlease click the button below to proceed and participate in this study. If you do not wish to participate, please close out your browser window. Otherwise, please press the SPACEBAR to continue.';
+textPrompt1 = 'Welcome to the study!\n\nToday, you will make some decisions about foods.\n\nThere will be multiple parts to the study, and you will receive instructions before each new part.\n\nIf you have any questions, please contact the experimenter at kiante@ucla.edu. If you are ready to begin, please press the SPACEBAR.'
 DrawFormattedText(w, textPrompt1, 'center', 'center', textColor);
 Screen('Flip', w) ;  % putting experiment instructions on screen
 RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
@@ -84,18 +84,9 @@ RestrictKeysForKbCheck([]); % goes back to regarding all keys
 
 Screen('FillRect',w,backgroundColor); % overwrite text and start with new screen
 
-% getting subject number
-Screen('TextBounds', w, ' ');
-subjectID = GetEchoString(w, 'Please enter your PROLIFIC ID: ', 50, 100, textColor, backgroundColor, -1, 1);
-
-Screen('FillRect',w,backgroundColor); % overwrite text and start with new screen
-
-
-
-
 %% Exposure %%
 
-textPrompt = 'To familiarize you with the set of snack foods in this study, we\n will now briefly show you each one.\n\n Please press the SPACEBAR to begin.';
+% ask if we need the names of each food? 
 DrawFormattedText(w, 'To familiarize you with the set of snack foods in this study, we\n will now briefly show you each one.\n\n Please press the SPACEBAR to begin.','center', 'center', textColor);
 Screen('Flip', w) ;  % putting experiment instructions on screen
 RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
@@ -256,7 +247,7 @@ randomizedArray = randperm(rangeEnd - rangeStart + 1) + rangeStart - 1;
 
 
 %%%%%%%%%%%%%%% getting ratings
-DrawFormattedText(w, 'Rating task', 'center', 'center', textColor); 
+DrawFormattedText(w, 'Rating task\n\nNow you will make decisions about each snack food one by one.\nFor each snack food, please rate it on a scale from "Not at all" to "Very much" based on how much you would like this as a daily snack.\nA "Not at all" means that you would neither like nor dislike to eat this food.\nA "Very much" means that you would really love to eat this food.\nTo rate an item, use the mouse to click anywhere along the slider scale. When you have rated an item, press continue to move to proceed.\n\nWhen you are ready, press the SPACEBAR to start.', 'center', 'center', textColor); 
 Screen('Flip', w) ;  % putting experiment instructions on screen
 RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
 KbPressWait(-1); % wait till space is pressed
@@ -373,7 +364,7 @@ end
 
 
 %% select 2 out of 4 options
-DrawFormattedText(w, 'Selecting 2 options - using eye tracker', 'center', 'center', textColor); 
+DrawFormattedText(w, 'Food Preference: Choose Two\n\nYou will now select two of the foods you''d most like to eat.\nPlease keep your head still, otherwise we may have to redo the calibration and validation.\nBefore each trial: Please look at the center of the screen.\nThere will be a break halfway through the task. During the break, you can move your head if you need to.\nAs a reminder, you are choosing which food you''d most like to eat: \n\nTo select a food:\nIf you want to eat the left food, press the J key;\nIf you want to eat the top food, press the I key;\nIf you want to eat the right food, press the L key;\nIf you want to eat the bottom food, press the K key;\n\nOnce selected the food will have an Orange outline.\nOnce you select a food, you cannot deselect it.\n\nOnce you select the foods: Please look at the center of the screen.\nWhen you are ready, press the SPACE BAR to begin.', 'center', 'center', textColor); 
 Screen('Flip', w) ;  % putting experiment instructions on screen
 RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
 KbPressWait(-1); % wait till space is pressed
