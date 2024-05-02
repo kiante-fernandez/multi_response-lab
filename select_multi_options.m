@@ -556,7 +556,7 @@ selectDataTable = table(trials, firstFood, firstResponse, secondFood, secondResp
 % beginning of a block if you're doing blocks of trials.
 % EyelinkDoDriftCorrection(el);
 
-
+%% CHOOSE TWO
 for trial=1:trialN
 
 %     % Write the trial number out to the experimenter's computer
@@ -893,6 +893,480 @@ for trial=1:trialN
         WaitSecs(0.3);
 
     end
+%% CHOOSE ONE
+for trial=1:trialN
+
+%     % Write the trial number out to the experimenter's computer
+%     % This isn't necessary, but it is nice to know whereabouts the
+%     % subject is in the study
+%     if trackEye == 1
+%         Eyelink('command', 'record_status_message "SEARCH TRIAL %d/%d"', trial, trialN);
+% 
+%         % put the headers into the eye tracking file
+%         % Again, not necessary, but really nice to already have headers
+%         if trial == 1
+%             eyeLabel = '%s\t %s\t %s\t %s\t %s\n';
+%             fprintf(eyeTrain1File, eyeLabel, ...
+%                 'subNum', 'trial', 'lookLeft', 'fixStart', 'fixEnd');
+%         end
+%  
+%         % start recording eye position (preceded by a short pause so that
+%         % the tracker can finish the mode transition)
+%         % The paramerters for the 'StartRecording' call controls the
+%         % file_samples, file_events, link_samples, link_events availability
+%         Eyelink('Command', 'set_idle_mode');
+%         WaitSecs(0.05);
+%         Eyelink('StartRecording');
+%         % record a few samples before we actually start displaying
+%         % otherwise you may lose a few msec of data
+%         WaitSecs(0.1);
+
+
+    
+    % showing fixation cross
+    Screen('DrawLines', w, allCoords,...
+        lineWidthPix, black, [xCenter yCenter], 2);
+
+    % Flip to the screen
+    Screen('Flip', w);
+    WaitSecs(0.4);
+    selectStart = tic;
+
+%     % used for syncing time, This will print "synctime_part1" into
+%     % the EDF at this timepoint. This is useful for keeping track
+%     % in the edf of when a trial starts, and what part of the study
+%     % it belongs to if you have several parts.
+%     Eyelink('Message', 'SYNCTIME_part1');
+%     % This is just telling us that the trial is valid (useful for
+%     % if you recallibrate during a trial, in which case this will
+%     % later be switched to 0 so you know to throw the trial out)
+%     Eyelink('Message', '!V TRIAL_VAR VALID_TRIAL %d', 1);
+% 
+%     eye_used = Eyelink('eyeavailable'); % get eye that's tracked
+
+    % creating rects for the 4 images
+
+    % top image
+    topImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 2)}));
+    [oTopImgHeight, oTopImgWidth, ~] = size(topImg);
+    topImgHeight = round(oTopImgHeight * 0.5);
+    topImgWidth = round(oTopImgWidth * 0.5);
+    newSizeT = [topImgHeight, topImgWidth];
+    topImg = imresize(topImg, newSizeT);
+
+    topTex = Screen('MakeTexture', w, topImg);
+    topXpos = (wWidth - topImgWidth) / 2;
+    topYpos = 0.07*wHeight;
+    topRect = [topXpos topYpos topXpos+topImgWidth topYpos+topImgHeight];
+
+    % right image
+    rightImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 3)}));
+    [oRightImgHeight, oRightImgWidth, ~] = size(rightImg);
+    rightImgHeight = round(oRightImgHeight * 0.5);
+    rightImgWidth = round(oRightImgWidth * 0.5);
+    newSizeR = [rightImgHeight, rightImgWidth];
+    rightImg = imresize(rightImg, newSizeR);
+
+    rightTex = Screen('MakeTexture', w, rightImg);
+    rightXpos = 0.7*wWidth;
+    rightYpos = (wHeight - rightImgHeight) / 2;
+    rightRect = [rightXpos rightYpos rightXpos+rightImgWidth rightYpos+rightImgHeight];
+
+    % bottom image
+    botImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 4)}));
+    [oBotImgHeight, oBotImgWidth, ~] = size(botImg);
+    botImgHeight = round(oBotImgHeight * 0.5);
+    botImgWidth = round(oBotImgWidth * 0.5);
+    newSizeB = [botImgHeight, botImgWidth];
+    botImg = imresize(botImg, newSizeB);
+
+    botTex = Screen('MakeTexture', w, botImg);
+    botXpos = (wWidth - botImgWidth) / 2;
+    botYpos = 0.7*wHeight;
+    botRect = [botXpos botYpos botXpos+botImgWidth botYpos+botImgHeight];
+
+
+    % left image
+    leftImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 1)}));
+    [oLeftImgHeight, oLeftImgWidth, ~] = size(leftImg);
+    leftImgHeight = round(oLeftImgHeight * 0.5);
+    leftImgWidth = round(oLeftImgWidth * 0.5);
+    newSizeL = [leftImgHeight, leftImgWidth];
+    leftImg = imresize(leftImg, newSizeL);
+
+    leftTex = Screen('MakeTexture', w, leftImg);
+    leftXpos = 0.2*wWidth;
+    leftYpos = (wHeight - leftImgHeight) / 2;
+    leftRect = [leftXpos leftYpos leftXpos+leftImgWidth leftYpos+leftImgHeight];
+
+    % Set up the two ROIs. The !V is asking for gaze/velocity
+    % information, IAREA RECTANGLE is the type of roi (it's a
+    % rectangle... but you can also change it to be IAREA ELLIPSE
+    % for circles or IAREA FREEHAND for an irregular shape.)
+    % The following "%d"s correspond to the following (for both
+    % rectangle and ellipse):
+    % 1: id #
+    % 2 & 3: top left (x,y)
+    % 4 & 5: bottom right (x,y)
+    % For freehand, the first one is still id #, the following are
+    % x,y coordinates for each outer portion of the ROI (only x,y pairs
+    % have a comma between them).
+    % The final %s corresponds to the label string you give your
+    % ROI. The examples below are two ROIs for the left and right
+    % side of the screen.
+%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 1,leftXpos, leftYpos, leftXpos+leftImgWidth, leftYpos+leftImgHeight, 'left');
+%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 2, topXpos, topYpos, topXpos+topImgWidth, topYpos+topImgHeight, 'top');
+%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 3, rightXpos, rightYpos, rightXpos+rightImgWidth, rightYpos+rightImgHeight, 'right');
+%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 4, botXpos, botYpos, botXpos+botImgWidth ,botYpos+botImgHeight, 'bottom');
+
+
+    % drawing all the images
+    Screen('DrawTextures', w, topTex, [], topRect);
+    Screen('DrawTextures', w, botTex, [], botRect);
+    Screen('DrawTextures', w, rightTex, [], rightRect);
+    Screen('DrawTextures', w, leftTex, [], leftRect);
+    [~, trialOnset, ~, ~, ~] = Screen('Flip', w, [], 1);
+
+    response = 0; % set default
+    lookLeft = -1; % set default
+    lookRight = -1;
+    lookUp = -1;
+    lookDown = -1;
+    prevLookLeft = -1; % set default
+    fixEnd = 0; % set default
+
+    while response == 0
+        keyPressed = zeros(1, 4);
+        % TO-DO: record which position they pressed
+        % J = 1, I = 2, L = 3, K = 4
+        % J = left, I = top, L = right, K = bottom
+
+        RestrictKeysForKbCheck([keyNumJ keyNumI keyNumL keyNumK]);
+
+        % checks first key press
+
+        keyCode = zeros(1, 256);
+        while ~keyCode(keyNumJ) && ~keyCode(keyNumI) && ~keyCode(keyNumL) && ~keyCode(keyNumK)
+            [~, ~, keyCode] = KbCheck(-1);
+        end
+
+        selectEnd = toc(selectStart);
+        select2Start = tic;
+        selectDataTable.firstResponse(trial) = selectEnd;
+        if keyCode(keyNumJ)
+            keyPressed(1) = 1;
+            selectDataTable.firstFood(trial) = rand4Img(trial, 1);
+            Screen('DrawTextures', w, topTex, [], topRect);
+            Screen('DrawTextures', w, botTex, [], botRect);
+            Screen('DrawTextures', w, rightTex, [], rightRect);
+            Screen('DrawTextures', w, leftTex, [], leftRect);
+            Screen('FrameRect', w, orange, leftRect, 4);
+            Screen('Flip', w);
+        elseif keyCode(keyNumI)
+            keyPressed(2) = 1;
+            selectDataTable.firstFood(trial) = rand4Img(trial, 2);
+            Screen('DrawTextures', w, topTex, [], topRect);
+            Screen('DrawTextures', w, botTex, [], botRect);
+            Screen('DrawTextures', w, rightTex, [], rightRect);
+            Screen('DrawTextures', w, leftTex, [], leftRect);
+            Screen('FrameRect', w, orange, topRect, 4);
+            Screen('Flip', w);
+        elseif keyCode(keyNumL)
+            keyPressed(3) = 1;
+            selectDataTable.firstFood(trial) = rand4Img(trial, 3);
+            Screen('DrawTextures', w, topTex, [], topRect);
+            Screen('DrawTextures', w, botTex, [], botRect);
+            Screen('DrawTextures', w, rightTex, [], rightRect);
+            Screen('DrawTextures', w, leftTex, [], leftRect);
+            Screen('FrameRect', w, orange, rightRect, 4);
+            Screen('Flip', w);
+        elseif keyCode(keyNumK)
+            keyPressed(4) = 1;
+            selectDataTable.firstFood(trial) = rand4Img(trial, 4);
+            Screen('DrawTextures', w, topTex, [], topRect);
+            Screen('DrawTextures', w, botTex, [], botRect);
+            Screen('DrawTextures', w, rightTex, [], rightRect);
+            Screen('DrawTextures', w, leftTex, [], leftRect);
+            Screen('FrameRect', w, orange, botRect, 4);
+            Screen('Flip', w);
+        end
+
+
+    end
+end
+
+
+%% CHOOSE THREE
+for trial=1:trialN
+
+    % showing fixation cross
+    Screen('DrawLines', w, allCoords,...
+        lineWidthPix, black, [xCenter yCenter], 2);
+
+    % Flip to the screen
+    Screen('Flip', w);
+    WaitSecs(0.4);
+    selectStart = tic;
+
+%     % used for syncing time, This will print "synctime_part1" into
+%     % the EDF at this timepoint. This is useful for keeping track
+%     % in the edf of when a trial starts, and what part of the study
+%     % it belongs to if you have several parts.
+%     Eyelink('Message', 'SYNCTIME_part1');
+%     % This is just telling us that the trial is valid (useful for
+%     % if you recallibrate during a trial, in which case this will
+%     % later be switched to 0 so you know to throw the trial out)
+%     Eyelink('Message', '!V TRIAL_VAR VALID_TRIAL %d', 1);
+% 
+%     eye_used = Eyelink('eyeavailable'); % get eye that's tracked
+
+    % creating rects for the 4 images
+
+    % top image
+    topImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 2)}));
+    [oTopImgHeight, oTopImgWidth, ~] = size(topImg);
+    topImgHeight = round(oTopImgHeight * 0.5);
+    topImgWidth = round(oTopImgWidth * 0.5);
+    newSizeT = [topImgHeight, topImgWidth];
+    topImg = imresize(topImg, newSizeT);
+
+    topTex = Screen('MakeTexture', w, topImg);
+    topXpos = (wWidth - topImgWidth) / 2;
+    topYpos = 0.07*wHeight;
+    topRect = [topXpos topYpos topXpos+topImgWidth topYpos+topImgHeight];
+
+    % right image
+    rightImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 3)}));
+    [oRightImgHeight, oRightImgWidth, ~] = size(rightImg);
+    rightImgHeight = round(oRightImgHeight * 0.5);
+    rightImgWidth = round(oRightImgWidth * 0.5);
+    newSizeR = [rightImgHeight, rightImgWidth];
+    rightImg = imresize(rightImg, newSizeR);
+
+    rightTex = Screen('MakeTexture', w, rightImg);
+    rightXpos = 0.7*wWidth;
+    rightYpos = (wHeight - rightImgHeight) / 2;
+    rightRect = [rightXpos rightYpos rightXpos+rightImgWidth rightYpos+rightImgHeight];
+
+    % bottom image
+    botImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 4)}));
+    [oBotImgHeight, oBotImgWidth, ~] = size(botImg);
+    botImgHeight = round(oBotImgHeight * 0.5);
+    botImgWidth = round(oBotImgWidth * 0.5);
+    newSizeB = [botImgHeight, botImgWidth];
+    botImg = imresize(botImg, newSizeB);
+
+    botTex = Screen('MakeTexture', w, botImg);
+    botXpos = (wWidth - botImgWidth) / 2;
+    botYpos = 0.7*wHeight;
+    botRect = [botXpos botYpos botXpos+botImgWidth botYpos+botImgHeight];
+
+
+    % left image
+    leftImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 1)}));
+    [oLeftImgHeight, oLeftImgWidth, ~] = size(leftImg);
+    leftImgHeight = round(oLeftImgHeight * 0.5);
+    leftImgWidth = round(oLeftImgWidth * 0.5);
+    newSizeL = [leftImgHeight, leftImgWidth];
+    leftImg = imresize(leftImg, newSizeL);
+
+    leftTex = Screen('MakeTexture', w, leftImg);
+    leftXpos = 0.2*wWidth;
+    leftYpos = (wHeight - leftImgHeight) / 2;
+    leftRect = [leftXpos leftYpos leftXpos+leftImgWidth leftYpos+leftImgHeight];
+
+    % Set up the two ROIs. The !V is asking for gaze/velocity
+    % information, IAREA RECTANGLE is the type of roi (it's a
+    % rectangle... but you can also change it to be IAREA ELLIPSE
+    % for circles or IAREA FREEHAND for an irregular shape.)
+    % The following "%d"s correspond to the following (for both
+    % rectangle and ellipse):
+    % 1: id #
+    % 2 & 3: top left (x,y)
+    % 4 & 5: bottom right (x,y)
+    % For freehand, the first one is still id #, the following are
+    % x,y coordinates for each outer portion of the ROI (only x,y pairs
+    % have a comma between them).
+    % The final %s corresponds to the label string you give your
+    % ROI. The examples below are two ROIs for the left and right
+    % side of the screen.
+%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 1,leftXpos, leftYpos, leftXpos+leftImgWidth, leftYpos+leftImgHeight, 'left');
+%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 2, topXpos, topYpos, topXpos+topImgWidth, topYpos+topImgHeight, 'top');
+%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 3, rightXpos, rightYpos, rightXpos+rightImgWidth, rightYpos+rightImgHeight, 'right');
+%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 4, botXpos, botYpos, botXpos+botImgWidth ,botYpos+botImgHeight, 'bottom');
+
+
+    % drawing all the images
+    Screen('DrawTextures', w, topTex, [], topRect);
+    Screen('DrawTextures', w, botTex, [], botRect);
+    Screen('DrawTextures', w, rightTex, [], rightRect);
+    Screen('DrawTextures', w, leftTex, [], leftRect);
+    [~, trialOnset, ~, ~, ~] = Screen('Flip', w, [], 1);
+
+    response = 0; % set default
+    lookLeft = -1; % set default
+    lookRight = -1;
+    lookUp = -1;
+    lookDown = -1;
+    prevLookLeft = -1; % set default
+    fixEnd = 0; % set default
+
+    while response == 0
+        keyPressed = zeros(1, 4);
+        % TO-DO: record which position they pressed
+        % J = 1, I = 2, L = 3, K = 4
+        % J = left, I = top, L = right, K = bottom
+
+        RestrictKeysForKbCheck([keyNumJ keyNumI keyNumL keyNumK]);
+
+        % checks first key press
+
+        keyCode = zeros(1, 256);
+        while ~keyCode(keyNumJ) && ~keyCode(keyNumI) && ~keyCode(keyNumL) && ~keyCode(keyNumK)
+            [~, ~, keyCode] = KbCheck(-1);
+        end
+
+        selectEnd = toc(selectStart);
+        select2Start = tic;
+        selectDataTable.firstResponse(trial) = selectEnd;
+        if keyCode(keyNumJ)
+            keyPressed(1) = 1;
+            selectDataTable.firstFood(trial) = rand4Img(trial, 1);
+            Screen('DrawTextures', w, topTex, [], topRect);
+            Screen('DrawTextures', w, botTex, [], botRect);
+            Screen('DrawTextures', w, rightTex, [], rightRect);
+            Screen('DrawTextures', w, leftTex, [], leftRect);
+            Screen('FrameRect', w, orange, leftRect, 4);
+            Screen('Flip', w);
+        elseif keyCode(keyNumI)
+            keyPressed(2) = 1;
+            selectDataTable.firstFood(trial) = rand4Img(trial, 2);
+            Screen('DrawTextures', w, topTex, [], topRect);
+            Screen('DrawTextures', w, botTex, [], botRect);
+            Screen('DrawTextures', w, rightTex, [], rightRect);
+            Screen('DrawTextures', w, leftTex, [], leftRect);
+            Screen('FrameRect', w, orange, topRect, 4);
+            Screen('Flip', w);
+        elseif keyCode(keyNumL)
+            keyPressed(3) = 1;
+            selectDataTable.firstFood(trial) = rand4Img(trial, 3);
+            Screen('DrawTextures', w, topTex, [], topRect);
+            Screen('DrawTextures', w, botTex, [], botRect);
+            Screen('DrawTextures', w, rightTex, [], rightRect);
+            Screen('DrawTextures', w, leftTex, [], leftRect);
+            Screen('FrameRect', w, orange, rightRect, 4);
+            Screen('Flip', w);
+        elseif keyCode(keyNumK)
+            keyPressed(4) = 1;
+            selectDataTable.firstFood(trial) = rand4Img(trial, 4);
+            Screen('DrawTextures', w, topTex, [], topRect);
+            Screen('DrawTextures', w, botTex, [], botRect);
+            Screen('DrawTextures', w, rightTex, [], rightRect);
+            Screen('DrawTextures', w, leftTex, [], leftRect);
+            Screen('FrameRect', w, orange, botRect, 4);
+            Screen('Flip', w);
+        end
+
+
+        RestrictKeysForKbCheck([]);
+        KbReleaseWait;
+
+        excludeKey = find(keyPressed);
+        restrictedKeys = [keyNumJ keyNumI keyNumL keyNumK];
+        restrictedKeys(excludeKey) = [];
+
+        keyCode2 = zeros(1, 256);
+        RestrictKeysForKbCheck(restrictedKeys);
+        while ~any(keyCode2(restrictedKeys))
+            [~, ~, keyCode2] = KbCheck(-1);
+        end
+        select2End = toc(select2Start);
+        select3Start = tic;
+        selectDataTable.secondResponse(trial) = select2End;
+        if keyCode2(keyNumJ) && ~keyPressed(1)
+            keyPressed(1) = 1;
+            selectDataTable.secondFood(trial) = rand4Img(trial, 1);
+        elseif keyCode2(keyNumI) && ~keyPressed(2)
+            keyPressed(2) = 1;
+            selectDataTable.secondFood(trial) = rand4Img(trial, 2);
+        elseif keyCode2(keyNumL) && ~keyPressed(3)
+            keyPressed(3) = 1;
+            selectDataTable.secondFood(trial) = rand4Img(trial, 3);
+        elseif keyCode2(keyNumK) && ~keyPressed(4)
+            keyPressed(4) = 1;
+            selectDataTable.secondFood(trial) = rand4Img(trial, 4);
+        end
+
+        Screen('DrawTextures', w, topTex, [], topRect);
+        Screen('DrawTextures', w, botTex, [], botRect);
+        Screen('DrawTextures', w, rightTex, [], rightRect);
+        Screen('DrawTextures', w, leftTex, [], leftRect);
+
+        if keyPressed(1)
+            Screen('FrameRect', w, orange, leftRect, 4);
+        end
+        if keyPressed(2)
+            Screen('FrameRect', w, orange, topRect, 4);
+        end
+        if keyPressed(3)
+            Screen('FrameRect', w, orange, rightRect, 4);
+        end
+        if keyPressed(4)
+            Screen('FrameRect', w, orange, botRect, 4);
+        end
+
+        RestrictKeysForKbCheck([]);
+        KbReleaseWait;
+
+        excludeKey = find(keyPressed);
+        restrictedKeys = [keyNumJ keyNumI keyNumL keyNumK];
+        restrictedKeys(excludeKey) = [];
+
+        keyCode3 = zeros(1, 256);
+        RestrictKeysForKbCheck(restrictedKeys);
+        while ~any(keyCode3(restrictedKeys))
+            [~, ~, keyCode3] = KbCheck(-1);
+        end
+        select3End = toc(select3Start);
+        selectDataTable.secondResponse(trial) = select3End;
+        if keyCode3(keyNumJ) && ~keyPressed(1)
+            keyPressed(1) = 1;
+            selectDataTable.secondFood(trial) = rand4Img(trial, 1);
+        elseif keyCode3(keyNumI) && ~keyPressed(2)
+            keyPressed(2) = 1;
+            selectDataTable.secondFood(trial) = rand4Img(trial, 2);
+        elseif keyCode3(keyNumL) && ~keyPressed(3)
+            keyPressed(3) = 1;
+            selectDataTable.secondFood(trial) = rand4Img(trial, 3);
+        elseif keyCode3(keyNumK) && ~keyPressed(4)
+            keyPressed(4) = 1;
+            selectDataTable.secondFood(trial) = rand4Img(trial, 4);
+        end
+
+        Screen('DrawTextures', w, topTex, [], topRect);
+        Screen('DrawTextures', w, botTex, [], botRect);
+        Screen('DrawTextures', w, rightTex, [], rightRect);
+        Screen('DrawTextures', w, leftTex, [], leftRect);
+
+        if keyPressed(1)
+            Screen('FrameRect', w, orange, leftRect, 4);
+        end
+        if keyPressed(2)
+            Screen('FrameRect', w, orange, topRect, 4);
+        end
+        if keyPressed(3)
+            Screen('FrameRect', w, orange, rightRect, 4);
+        end
+        if keyPressed(4)
+            Screen('FrameRect', w, orange, botRect, 4);
+        end
+
+        Screen('Flip', w);
+        WaitSecs(0.3);
+        response = 1;
+
+    end
+end
 
 
 %% EXIT %%
