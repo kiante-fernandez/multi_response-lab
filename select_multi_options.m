@@ -1,13 +1,20 @@
-% Author: Sumedha Goyal
+%% MULTI-RESPONSE VALUE-BASED DECSION MAKING TASK%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% This script runs an four alternative forced choice task to measure
+% choose (k) selections while gathering eye tracking data
+%
+%
+% Authors: Sumedha Goyal & Kianté Fernandez (kiante@ucla.edu)
+% Last modified: 2025-Feb-07
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 clear all   % clear variables and other settings
 clc         % clear command window
 rng shuffle % seed random number generator based on clock time
 close all   % close figure windows
-sca        % close PsychToolbox windows
+sca         % close Psychtoolbox windows
 
-%hello
-
+subjectNumber = input('Enter subject number: ');
 
 % suppress PsychToolbox welcome screen
 Screen('Preference', 'VisualDebugLevel', 1);
@@ -25,7 +32,7 @@ mainScreenNum = max(allScreenNums);
 
 %PsychDebugWindowConfiguration % makes screen transparent to see errors when debugging
 
-backgroundColor = [255 255 255]; % setting background color to black
+backgroundColor = [0 0 0]; % setting background color to black
 
 % open black full-screen window (called "w")
 w = PsychImaging('OpenWindow', mainScreenNum, backgroundColor); % add ', [0 0 500 300]' at end to make ...
@@ -42,11 +49,11 @@ ymid = round(wHeight/2); % vertical midpoint of window 'w' in pixels
 
 ListenChar(2) % suppresses keyboard input to Matlab windows
 
-textColor = [0 0 0]; % setting text color to white
+textColor = [255 255 255]; % setting text color to white
 
 Screen('TextSize', w, round(wHeight/50)); % text size
 Screen('TextFont', w, 'Helvetica');           % text font
-Screen('TextStyle', w, 0) ;                % text style 
+Screen('TextStyle', w, 0) ;                % text style
 
 KbName('UnifyKeyNames'); % using standard keyboard names
 keyNumSpace = min(KbName('Space'));   %key number for SPACE key
@@ -54,6 +61,8 @@ keyNumJ = min(KbName('j'));
 keyNumI = min(KbName('i'));
 keyNumL = min(KbName('l'));
 keyNumK = min(KbName('k'));
+escKey = KbName('ESCAPE');
+
 greycol = [128 128 128];
 
 % Initialize image numbers
@@ -68,8 +77,70 @@ dataTable = table(imageNumbers, allRatings, responseTimes);
 
 % if you want to do eye tracking, set this to one, otherwise, set it to
 % 0
+global trackEye;
 trackEye = 0;
 trialN = 60; % number of trials
+
+%% Eye Tracking Setup
+if trackEye == 1
+    % initialize the defaults
+    el = EyelinkInitDefaults(w);
+
+    % Initialization of the connection with the Eyelink Gazetracker.
+    if ~EyelinkInit(0)
+        fprintf('Eyelink Init aborted.\n');
+        cleanup;  % cleanup function defined at the end
+        return;
+    end
+
+    % Name the EDF file
+    edfFile = ['S' num2str(subjectNumber) '.edf'];
+
+    % Open file to record data to
+    status = Eyelink('OpenFile', edfFile);
+    if status ~= 0
+        fprintf('OpenFile error, status: %d\n', status);
+        cleanup;
+        return;
+    end
+
+    % make sure we're still connected.
+    if Eyelink('IsConnected')~=1
+        cleanup;
+        return;
+    end
+
+    % Set up tracker configuration
+    Eyelink('command', 'screen_pixel_coords = %ld %ld %ld %ld', 0, 0, wWidth-1, wHeight-1);
+    Eyelink('message', 'DISPLAY_COORDS %ld %ld %ld %ld', 0, 0, wWidth-1, wHeight-1);
+    Eyelink('command', 'calibration_type = HV9');
+    % Set EDF file contents
+    Eyelink('command', 'file_event_filter = LEFT,RIGHT,FIXATION,SACCADE,BLINK,MESSAGE,BUTTON,INPUT');
+    Eyelink('command', 'link_event_filter = LEFT,RIGHT,FIXATION,SACCADE,BLINK,MESSAGE,BUTTON,INPUT');
+    Eyelink('command', 'file_sample_data  = LEFT,RIGHT,GAZE,HREF,AREA,GAZERES,STATUS,INPUT');
+    Eyelink('command', 'link_sample_data  = LEFT,RIGHT,GAZE,GAZERES,AREA,STATUS,INPUT');
+
+    % Set display colors
+    el.backgroundcolour = backgroundColor;
+    el.foregroundcolour = textColor;
+    el.calibrationtargetcolour = textColor;
+    el.calibrationtargetsize = 1;
+    el.calibrationtargetwidth = 0.5;
+    EyelinkUpdateDefaults(el);
+
+    % Calibrate the eye tracker
+    EyelinkDoTrackerSetup(el);
+
+    % Create eye data file
+    eyeFile = fopen(['eyeData_' num2str(subjectNumber) '.txt'], 'w');
+    fprintf(eyeFile, 'Block\tTrial\tTime\tROI\tFixDur\n');
+    % Get eye that's tracked
+    eye_used = Eyelink('EyeAvailable');
+    if eye_used == el.BINOCULAR
+        eye_used = el.LEFT_EYE;
+    end
+
+end
 
 %% introduction %%
 Screen('FillRect', w, backgroundColor); % clear visual buffer
@@ -86,7 +157,7 @@ Screen('FillRect',w,backgroundColor); % overwrite text and start with new screen
 
 %% Exposure %%
 
-% ask if we need the names of each food? 
+% ask if we need the names of each food?
 DrawFormattedText(w, 'To familiarize you with the set of snack foods in this study, we\n will now briefly show you each one.\n\n Please press the SPACEBAR to begin.','center', 'center', textColor);
 Screen('Flip', w) ;  % putting experiment instructions on screen
 RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
@@ -95,15 +166,15 @@ KbPressWait(-1); % wait till space is pressed
 RestrictKeysForKbCheck([]); % goes back to regarding all keys
 
 Screen('FillRect',w,backgroundColor); % overwrite text and start with new screen
- 
+
 % Define the path to the folder containing images
 folderPath = 'images/60foods';
 
 % Get a list of all image files in the folder
-imageFiles = ls(fullfile(folderPath, '*.jpg')); % Change '*.jpg' to match your image file format
-%fileList = strsplit(imageFiles);
-imageFileNames = cellstr(imageFiles);
-%imageFileNames = imageFileNames(1:60);
+% imageFiles = ls(fullfile(folderPath, '*.jpg'));
+% imageFileNames = cellstr(imageFiles);
+imageFiles = dir(fullfile(folderPath, '*.jpg'));
+imageFileNames = {imageFiles.name};
 
 % Set the duration to display each image (in seconds)
 displayDuration = 0.75;
@@ -113,29 +184,29 @@ try
     for i = 1:trialN
         % Load the image
         img = imread(fullfile(folderPath, imageFileNames{i}));
- 
-    %    imshow(img);
-  
-         imgWidth = size(img, 2);
-         imgHeight = size(img, 1); 
-         xPos = (wWidth - imgWidth) / 2;
-         yPos = (wHeight - imgHeight) / 2;
-%         
-%         
-%         % Convert the image matrix to a Psychtoolbox texture
-         tex = Screen('MakeTexture', w, img);
-%         
-%         % Display the image in the center of the screen
-         Screen('DrawTexture', w, tex, [], [xPos yPos xPos+imgWidth yPos+imgHeight]);
+
+        %    imshow(img);
+
+        imgWidth = size(img, 2);
+        imgHeight = size(img, 1);
+        xPos = (wWidth - imgWidth) / 2;
+        yPos = (wHeight - imgHeight) / 2;
+        %
+        %
+        %         % Convert the image matrix to a Psychtoolbox texture
+        tex = Screen('MakeTexture', w, img);
+        %
+        %         % Display the image in the center of the screen
+        Screen('DrawTexture', w, tex, [], [xPos yPos xPos+imgWidth yPos+imgHeight]);
         Screen('Flip', w);
-%         
-%         % Pause for the specified duration
-         WaitSecs(displayDuration);
-%          
-%         % Close the texture
-         Screen('Close', tex);
-    end 
-    
+        %
+        %         % Pause for the specified duration
+        WaitSecs(displayDuration);
+        %
+        %         % Close the texture
+        Screen('Close', tex);
+    end
+
 catch
     % Close the Psychtoolbox window in case of an error
     sca
@@ -145,9 +216,7 @@ end
 
 Screen('FillRect', w, backgroundColor);
 
-
 %% RATINGS %%
-
 
 %%%% slider set up
 ifi = Screen('GetFlipInterval', w);
@@ -247,12 +316,12 @@ randomizedArray = randperm(rangeEnd - rangeStart + 1) + rangeStart - 1;
 
 
 %%%%%%%%%%%%%%% getting ratings
-DrawFormattedText(w, 'Rating task\n\nNow you will make decisions about each snack food one by one.\nFor each snack food, please rate it on a scale from "Not at all" to "Very much" based on how much you would like this as a daily snack.\nA "Not at all" means that you would neither like nor dislike to eat this food.\nA "Very much" means that you would really love to eat this food.\nTo rate an item, use the mouse to click anywhere along the slider scale. When you have rated an item, press continue to move to proceed.\n\nWhen you are ready, press the SPACEBAR to start.', 'center', 'center', textColor); 
+DrawFormattedText(w, 'Rating task\n\nNow you will make decisions about each snack food one by one.\nFor each snack food, please rate it on a scale from "Not at all" to "Very much" based on how much you would like this as a daily snack.\nA "Not at all" means that you would neither like nor dislike to eat this food.\nA "Very much" means that you would really love to eat this food.\nTo rate an item, use the mouse to click anywhere along the slider scale. When you have rated an item, press continue to move to proceed.\n\nWhen you are ready, press the SPACEBAR to start.', 'center', 'center', textColor);
 Screen('Flip', w) ;  % putting experiment instructions on screen
 RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
 KbPressWait(-1); % wait till space is pressed
 
- 
+
 %% displaying ratings
 
 for i = 1:trialN
@@ -273,7 +342,7 @@ for i = 1:trialN
     %  maybe use tick tock here
     tStart = tic;
 
-    mousePressed = true; 
+    mousePressed = true;
     sx = xCenter + (rand * 2 - 1) * sliderHLengthPix;
     centeredRect = CenterRectOnPointd(baseRect, sx, sliderYpos);
 
@@ -287,9 +356,9 @@ for i = 1:trialN
 
         % Find the central position of the square
         [cx, cy] = RectCenter(centeredRect);
-        
 
-        % See if the mouse cursor is inside the square 
+
+        % See if the mouse cursor is inside the square
         inside = IsInRect(mx, my, centeredRect);
 
         % If the mouse cursor is inside the square and a mouse button is being
@@ -306,14 +375,14 @@ for i = 1:trialN
             sx = mx - dx;
         end
 
-        % Restrict the x position to be on the slider 
+        % Restrict the x position to be on the slider
         if sx > xCenter + sliderHLengthPix
             sx = xCenter + sliderHLengthPix;
         elseif sx < xCenter - sliderHLengthPix
             sx = xCenter - sliderHLengthPix;
         end
 
-        % Center the slidre toggle on its new screen position
+        % Center the slider toggle on its new screen position
         centeredRect = CenterRectOnPointd(baseRect, sx, sliderYpos);
 
         % Draw the slider line
@@ -351,147 +420,51 @@ for i = 1:trialN
                 % to-do - make sure the image id is being collected along
                 % with the rating and response time
                 dataTable.responseTimes(currentImg) = toc(tStart);
-                WaitSecs(0.2); 
+                WaitSecs(0.2);
                 mousePressed = false;
             end
         end
 
 
     end
-    
+
 
 end
 
+%% CHOICE TASK SETUP
+% Task parameters
+nTrialsPerBlock = 100;
+nBlocks = 3;
+blockTypes = {'choose1', 'choose2', 'choose3'};
+blockOrder = randperm(nBlocks); % Randomize block order
 
-%% select 2 out of 4 options
-DrawFormattedText(w, 'Food Preference: Choose Two\n\nYou will now select two of the foods you''d most like to eat.\nPlease keep your head still, otherwise we may have to redo the calibration and validation.\nBefore each trial: Please look at the center of the screen.\nThere will be a break halfway through the task. During the break, you can move your head if you need to.\nAs a reminder, you are choosing which food you''d most like to eat: \n\nTo select a food:\nIf you want to eat the left food, press the J key;\nIf you want to eat the top food, press the I key;\nIf you want to eat the right food, press the L key;\nIf you want to eat the bottom food, press the K key;\n\nOnce selected the food will have an Orange outline.\nOnce you select a food, you cannot deselect it.\n\nOnce you select the foods: Please look at the center of the screen.\nWhen you are ready, press the SPACE BAR to begin.', 'center', 'center', textColor); 
-Screen('Flip', w) ;  % putting experiment instructions on screen
-RestrictKeysForKbCheck(keyNumSpace) ; % disregard all keys except space
-KbPressWait(-1); % wait till space is pressed
+% Initialize data tables for each block type
+trials = (1:nTrialsPerBlock)';
+firstFood = zeros(nTrialsPerBlock, 1);
+firstResponse = zeros(nTrialsPerBlock, 1);
+secondFood = zeros(nTrialsPerBlock, 1);
+secondResponse = zeros(nTrialsPerBlock, 1);
+thirdFood = zeros(nTrialsPerBlock, 1);
+thirdResponse = zeros(nTrialsPerBlock, 1);
 
+% Create tables for each block type
+choose1Data = table(trials, firstFood, firstResponse);
+choose2Data = table(trials, firstFood, firstResponse, secondFood, secondResponse);
+choose3Data = table(trials, firstFood, firstResponse, secondFood, secondResponse, thirdFood, thirdResponse);
 
-%% EYE TRACKER CALIBRATION %%
-if trackEye == 1
-        
-        % initiates the defaults for the eye tracker on the screen you
-        % opened
-        el = EyelinkInitDefaults(w);
-        
-        %Name the edf file
-        edfFileName = ['RG_' num2str(1)];
-        
-        % Initialization of the connection with the Eyelink Gazetracker.
-        % exit program if this fails.
-        if ~EyelinkInit() % Initializes Eyelink and Ethernet system. Returns: 0 if OK, -1 if error
-            error('could not init connection to Eyelink')
-        end
-        
-        % check the software version
-        [~ , vs] = Eyelink('GetTrackerVersion');
-        fprintf('Running experiment on a ''%s'' tracker.\n', vs);
-        
-        % open file to record data to (which is basically done
-        % automatically)
-        status = Eyelink('openfile', edfFileName);
-        % if something goes wrong with creating the EDF, shut it down.
-        if status~=0
-            fprintf('Cannot create EDF file ''%s'' ', edfFileName);
-            Eyelink('Shutdown');
-            Screen('CloseAll');
-            return;
-        end
-        
-        
-        % SET UP TRACKER CONFIGURATION
-        % Setting the proper recording resolution, proper calibration type,
-        % as well as the data file content;
-        Eyelink('command', 'screen_pixel_coords = %ld %ld %ld %ld', 0, 0, wWidth, wHeight);
-        Eyelink('message', 'DISPLAY_COORDS %ld %ld %ld %ld', 0, 0, wWidth, wHeight);
-        % set calibration type. (This can also be done in the eye tracking
-        % gui at the start of the study, but this makes sure that it's the
-        % same for every participant)
-        Eyelink('command', 'calibration_type = HV9');
-        
-        % set EDF file contents using the file_sample_data and
-        % file-event_filter commands
-        % set link data through link_sample_data and link_event_filter
-        Eyelink('command', 'file_event_filter = LEFT,RIGHT,FIXATION,SACCADE,BLINK,MESSAGE,BUTTON,INPUT');
-        Eyelink('command', 'link_event_filter = LEFT,RIGHT,FIXATION,SACCADE,BLINK,MESSAGE,BUTTON,INPUT');
-        
-        % add "HTARGET" to record possible target data for EyeLink Remote
-        % This is done if the version (vs) is >= 4. We don't actually have
-        % to worry about this, because we use the headrest (this is for if
-        % you use the target sticker and let the head move freely)
-        if sscanf(vs(12:end),'%f') >=4
-            Eyelink('command', 'file_sample_data  = LEFT,RIGHT,GAZE,HREF,AREA,HTARGET,GAZERES,STATUS,INPUT');
-            Eyelink('command', 'link_sample_data  = LEFT,RIGHT,GAZE,GAZERES,AREA,HTARGET,STATUS,INPUT');
-        else
-            Eyelink('command', 'file_sample_data  = LEFT,RIGHT,GAZE,HREF,AREA,GAZERES,STATUS,INPUT');
-            Eyelink('command', 'link_sample_data  = LEFT,RIGHT,GAZE,GAZERES,AREA,STATUS,INPUT');
-        end
-        
-        
-        % make sure we're still connected.
-        if Eyelink('IsConnected') == 0
-            fprintf('not connected, clean up\n');
-            Eyelink('ShutDown');
-            Screen('CloseAll');
-            return;
-        end
-        
-        % Calibrate the eye tracker
-        % setup the proper calibration foreground and background colors
-        % Make sure your background color is different from the foreground
-        % and msgfont colors, or else it will look like nothing is being
-        % displayed
-        el.backgroundcolour = 0;
-        el.foregroundcolour = 255;
-        el.msgfontcolour  = 255;
-        el.calibrationtargetcolour = greycol;
-        
-        % parameters are in frequency, volume, and duration
-        % set the second value in each line to 0 to turn off the sound
-        el.cal_target_beep=[600, 0, 0.05];
-        el.drift_correction_target_beep=[600, 0, 0.05];
-        el.calibration_failed_beep=[400, 0, 0.25];
-        el.calibration_success_beep=[800, 0, 0.25];
-        el.drift_correction_failed_beep=[400, 0, 0.25];
-        el.drift_correction_success_beep=[800, 0, 0.25];
-        % you must call this function to apply the changes from above
-        EyelinkUpdateDefaults(el);
-        
-        % Hide the mouse cursor
-        HideCursor;
-        EyelinkDoTrackerSetup(el); % Calibration
-        %EyelinkDoDriftCorrection(el); - this is unneccessary to do
-        %immediately after calibrating
-        
-        % Maximize Keyboard priority??
-        %Priority(1);
-        
-end % of not dummy mode
-
-
-
-% Here we set the size of the arms of our fixation cross
+% Setup fixation cross
 fixCrossDimPix = 40;
-
-black = [0 0 0];
-
-% Now we set the coordinates (these are all relative to zero we will let
-% the drawing routine center the cross in the center of our monitor for us)
 xCoords = [-fixCrossDimPix fixCrossDimPix 0 0];
 yCoords = [0 0 -fixCrossDimPix fixCrossDimPix];
 allCoords = [xCoords; yCoords];
-
-% Set the line width for our fixation cross
 lineWidthPix = 4;
-
+% Add these color definitions
+black = [0 0 0];
 orange = [255 95 31];
 
-% selects 4 images to display
+%% MAIN TASK LOOP
 % Define the size of the matrix
-rows = 50;
+rows = 100; % Changed for 100 trials per block
 cols = 4;
 total_elements = rows * cols;
 
@@ -499,894 +472,388 @@ total_elements = rows * cols;
 num_pool = repmat(1:60, 1, ceil(total_elements/60));
 num_pool = num_pool(randperm(length(num_pool)));
 
-% Create an empty matrix to store the numbers
-rand4Img = zeros(rows, cols);
-
+% Create matrix for 4-option trials
+% Prevent double use of images!
 % Fill each column with unique numbers
-for j = 1:cols
-    % Determine the start and end indices for the current column
-    start_idx = (j - 1) * rows + 1;
-    end_idx = min(j * rows, length(num_pool));
-    
-    % Assign unique numbers to the current column
-    rand4Img(:, j) = num_pool(start_idx:end_idx)';
+rand4Img = zeros(nTrialsPerBlock, 4);
+for trial = 1:nTrialsPerBlock
+    rand4Img(trial, :) = randperm(60, 4);
 end
 
-% Ensure each row contains unique numbers
-for i = 1:rows
-    % Get unique numbers in the current row
-    unique_numbers = unique(rand4Img(i, :));
-    
-    % If the number of unique numbers is less than 4, fill the row
-    if numel(unique_numbers) < 4
-        % Numbers that are already present in the row
-        present_numbers = unique_numbers(unique_numbers ~= 0);
-        
-        % Numbers that are not present in the row
-        available_numbers = setdiff(1:60, present_numbers);
-        
-        % Shuffle the available numbers
-        available_numbers = available_numbers(randperm(length(available_numbers)));
-        
-        % Fill the remaining slots in the row with unique numbers
-        remaining_slots = 4 - numel(present_numbers);
-        rand4Img(i, (end-remaining_slots+1):end) = available_numbers(1:remaining_slots);
+for block = 1:nBlocks
+    currentBlockType = blockTypes{blockOrder(block)};
+    disp(['Starting Block ' num2str(block) ' of ' num2str(nBlocks) ': ' currentBlockType]);
+
+    blockNum = ones(nTrialsPerBlock, 1) * block;
+    choose1Data.blockNum = blockNum;
+    choose2Data.blockNum = blockNum;
+    choose3Data.blockNum = blockNum;
+
+    if trackEye == 1
+        % Perform drift check at start of block
+        EyelinkDoDriftCorrection(el);
     end
-end
 
-
-% Initialize empty arrays for ratings and response times
-trials = (1:50)';
-firstFood = zeros(50, 1);
-firstResponse = zeros(50, 1);
-secondFood = zeros(50, 1);
-secondResponse = zeros(50, 1);
-
-% Create the table
-selectDataTable = table(trials, firstFood, firstResponse, secondFood, secondResponse);
-
-% rand4Img is a matrix where the columns are the items and each row is a
-% trial (100 rows x 4 columns)
-% should come from some function that takes the most liked images but for
-% now, an image shouldn't be shown more than 4 times
-
-   
-% Check for drift (displays a dot at center, and corrects for any
-% drift. I recommend putting this at the beginning of every section, or
-% beginning of a block if you're doing blocks of trials.
-% EyelinkDoDriftCorrection(el);
-
-%% CHOOSE TWO
-for trial=1:trialN
-
-%     % Write the trial number out to the experimenter's computer
-%     % This isn't necessary, but it is nice to know whereabouts the
-%     % subject is in the study
-%     if trackEye == 1
-%         Eyelink('command', 'record_status_message "SEARCH TRIAL %d/%d"', trial, trialN);
-% 
-%         % put the headers into the eye tracking file
-%         % Again, not necessary, but really nice to already have headers
-%         if trial == 1
-%             eyeLabel = '%s\t %s\t %s\t %s\t %s\n';
-%             fprintf(eyeTrain1File, eyeLabel, ...
-%                 'subNum', 'trial', 'lookLeft', 'fixStart', 'fixEnd');
-%         end
-%  
-%         % start recording eye position (preceded by a short pause so that
-%         % the tracker can finish the mode transition)
-%         % The paramerters for the 'StartRecording' call controls the
-%         % file_samples, file_events, link_samples, link_events availability
-%         Eyelink('Command', 'set_idle_mode');
-%         WaitSecs(0.05);
-%         Eyelink('StartRecording');
-%         % record a few samples before we actually start displaying
-%         % otherwise you may lose a few msec of data
-%         WaitSecs(0.1);
-
-
+    % After drift correction, before instructions:
+    if trackEye == 1
+        Eyelink('Message', 'BLOCK_START_%d', block);
+        Eyelink('Message', 'BLOCK_TYPE_%s', currentBlockType);
     end
-    % showing fixation cross
-    Screen('DrawLines', w, allCoords,...
-        lineWidthPix, black, [xCenter yCenter], 2);
 
-    % Flip to the screen
+    % Display block instructions
+    instructStr = '';
+    switch currentBlockType
+        case 'choose1'
+            instructStr = ['Food Choice Task: Choose One\n\n' ...
+                'In this block, you will select ONE food you''d most like to eat.\n\n' ...
+                'Use these keys to select foods:\n' ...
+                'J key - Left food\n' ...
+                'I key - Top food\n' ...
+                'L key - Right food\n' ...
+                'K key - Bottom food\n\n' ...
+                'Selected food will have an orange outline.\n\n' ...
+                'Press SPACE to begin.'];
+        case 'choose2'
+            instructStr = ['Food Choice Task: Choose Two\n\n' ...
+                'In this block, you will select TWO foods you''d most like to eat.\n\n' ...
+                'Use these keys to select foods:\n' ...
+                'J key - Left food\n' ...
+                'I key - Top food\n' ...
+                'L key - Right food\n' ...
+                'K key - Bottom food\n\n' ...
+                'Selected foods will have an orange outline.\n' ...
+                'Once you select a food, you cannot deselect it.\n\n' ...
+                'Press SPACE to begin.'];
+        case 'choose3'
+            instructStr = ['Food Choice Task: Choose Three\n\n' ...
+                'In this block, you will select THREE foods you''d most like to eat.\n\n' ...
+                'Use these keys to select foods:\n' ...
+                'J key - Left food\n' ...
+                'I key - Top food\n' ...
+                'L key - Right food\n' ...
+                'K key - Bottom food\n\n' ...
+                'Selected foods will have an orange outline.\n' ...
+                'Once you select a food, you cannot deselect it.\n\n' ...
+                'Press SPACE to begin.'];
+    end
+
+    DrawFormattedText(w, instructStr, 'center', 'center', textColor);
     Screen('Flip', w);
-    WaitSecs(0.4);
-    selectStart = tic;
+    KbStrokeWait;
 
-%     % used for syncing time, This will print "synctime_part1" into
-%     % the EDF at this timepoint. This is useful for keeping track
-%     % in the edf of when a trial starts, and what part of the study
-%     % it belongs to if you have several parts.
-%     Eyelink('Message', 'SYNCTIME_part1');
-%     % This is just telling us that the trial is valid (useful for
-%     % if you recallibrate during a trial, in which case this will
-%     % later be switched to 0 so you know to throw the trial out)
-%     Eyelink('Message', '!V TRIAL_VAR VALID_TRIAL %d', 1);
-% 
-%     eye_used = Eyelink('eyeavailable'); % get eye that's tracked
-
-    % creating rects for the 4 images
-
-    % top image
-    topImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 2)}));
-    [oTopImgHeight, oTopImgWidth, ~] = size(topImg);
-    topImgHeight = round(oTopImgHeight * 0.5);
-    topImgWidth = round(oTopImgWidth * 0.5);
-    newSizeT = [topImgHeight, topImgWidth];
-    topImg = imresize(topImg, newSizeT);
-
-    topTex = Screen('MakeTexture', w, topImg);
-    topXpos = (wWidth - topImgWidth) / 2;
-    topYpos = 0.07*wHeight;
-    topRect = [topXpos topYpos topXpos+topImgWidth topYpos+topImgHeight];
-
-    % right image
-    rightImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 3)}));
-    [oRightImgHeight, oRightImgWidth, ~] = size(rightImg);
-    rightImgHeight = round(oRightImgHeight * 0.5);
-    rightImgWidth = round(oRightImgWidth * 0.5);
-    newSizeR = [rightImgHeight, rightImgWidth];
-    rightImg = imresize(rightImg, newSizeR);
-
-    rightTex = Screen('MakeTexture', w, rightImg);
-    rightXpos = 0.7*wWidth;
-    rightYpos = (wHeight - rightImgHeight) / 2;
-    rightRect = [rightXpos rightYpos rightXpos+rightImgWidth rightYpos+rightImgHeight];
-
-    % bottom image
-    botImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 4)}));
-    [oBotImgHeight, oBotImgWidth, ~] = size(botImg);
-    botImgHeight = round(oBotImgHeight * 0.5);
-    botImgWidth = round(oBotImgWidth * 0.5);
-    newSizeB = [botImgHeight, botImgWidth];
-    botImg = imresize(botImg, newSizeB);
-
-    botTex = Screen('MakeTexture', w, botImg);
-    botXpos = (wWidth - botImgWidth) / 2;
-    botYpos = 0.7*wHeight;
-    botRect = [botXpos botYpos botXpos+botImgWidth botYpos+botImgHeight];
-
-
-    % left image
-    leftImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 1)}));
-    [oLeftImgHeight, oLeftImgWidth, ~] = size(leftImg);
-    leftImgHeight = round(oLeftImgHeight * 0.5);
-    leftImgWidth = round(oLeftImgWidth * 0.5);
-    newSizeL = [leftImgHeight, leftImgWidth];
-    leftImg = imresize(leftImg, newSizeL);
-
-    leftTex = Screen('MakeTexture', w, leftImg);
-    leftXpos = 0.2*wWidth;
-    leftYpos = (wHeight - leftImgHeight) / 2;
-    leftRect = [leftXpos leftYpos leftXpos+leftImgWidth leftYpos+leftImgHeight];
-
-    % Set up the two ROIs. The !V is asking for gaze/velocity
-    % information, IAREA RECTANGLE is the type of roi (it's a
-    % rectangle... but you can also change it to be IAREA ELLIPSE
-    % for circles or IAREA FREEHAND for an irregular shape.)
-    % The following "%d"s correspond to the following (for both
-    % rectangle and ellipse):
-    % 1: id #
-    % 2 & 3: top left (x,y)
-    % 4 & 5: bottom right (x,y)
-    % For freehand, the first one is still id #, the following are
-    % x,y coordinates for each outer portion of the ROI (only x,y pairs
-    % have a comma between them).
-    % The final %s corresponds to the label string you give your
-    % ROI. The examples below are two ROIs for the left and right
-    % side of the screen.
-%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 1,leftXpos, leftYpos, leftXpos+leftImgWidth, leftYpos+leftImgHeight, 'left');
-%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 2, topXpos, topYpos, topXpos+topImgWidth, topYpos+topImgHeight, 'top');
-%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 3, rightXpos, rightYpos, rightXpos+rightImgWidth, rightYpos+rightImgHeight, 'right');
-%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 4, botXpos, botYpos, botXpos+botImgWidth ,botYpos+botImgHeight, 'bottom');
-
-
-    % drawing all the images
-    Screen('DrawTextures', w, topTex, [], topRect);
-    Screen('DrawTextures', w, botTex, [], botRect);
-    Screen('DrawTextures', w, rightTex, [], rightRect);
-    Screen('DrawTextures', w, leftTex, [], leftRect);
-    [~, trialOnset, ~, ~, ~] = Screen('Flip', w, [], 1);
-
-    response = 0; % set default
-    lookLeft = -1; % set default
-    lookRight = -1;
-    lookUp = -1;
-    lookDown = -1;
-    prevLookLeft = -1; % set default
-    fixEnd = 0; % set default
-
-    while response == 0
-        keyPressed = zeros(1, 4);
-        % TO-DO: record which position they pressed
-        % J = 1, I = 2, L = 3, K = 4
-        % J = left, I = top, L = right, K = bottom
-
-%         % Check recording status
-%         err = Eyelink('CheckRecording');
-% 
-%         if err ~= 0
-%             error('checkrecording problem, status: %d', err);
-%         end
-% 
-%         % Check for new sample
-%         status = Eyelink('NewFloatSampleAvailable');
-%         if status >= 0
-%             evt = Eyelink('NewestFloatSample');
-%             % if we do, get current gaze position from sample
-%             eyeX = evt.gx(eye_used+1); % +1 as we're accessing MATLAB array
-%             eyeY = evt.gy(eye_used+1);
-%             eyetime = GetSecs();
-% 
-%             % Make sure that the data you're recording is even
-%             % valid
-%             if eyeX ~= el.MISSING_DATA && eyeY ~= el.MISSING_DATA && evt.pa(eye_used+1)>0
-% 
-%                 % See which ROI they're looking at - if they're
-%                 % outside of all roi's, it's counted as a -1
-%                 if eyeY >= leftYpos && eyeY <= leftYpos+leftImgHeight && eyeX >= leftXpos && eyeX <= leftXpos+leftImgWidth
-%                     lookLeft = 1;
-%                     lookRight = 0;
-%                     lookUp = 0;
-%                     lookDown = 0;
-%                 elseif eyeY >= topYpos && eyeY <= topYpos+topImgHeight && eyeX >= topXpos && eyeX <= topXpos+topImgWidth
-%                     lookLeft = 0;
-%                     lookRight = 0;
-%                     lookUp = 1;
-%                     lookDown = 0;
-%                 elseif eyeY >= rightYpos && eyeY <= rightYpos+rightImgHeight && eyeX >= rightXpos && eyeX <= rightXpos+rightImgWidth
-%                     lookLeft = 0;
-%                     lookRight = 1;
-%                     lookUp = 0;
-%                     lookDown = 0;
-%                 elseif eyeY >= botYpos && eyeY <= botYpos+botImgHeight && eyeX >= botXpos && eyeX <= botXpos+botImgWidth
-%                     lookLeft = 0;
-%                     lookRight = 0;
-%                     lookUp = 0;
-%                     lookDown = 1;
-%                 end
-% 
-%                 % START HERE AGAIN
-%                 % Making this independent of whether
-%                 % the eye was within an roi helps eliminate
-%                 % blinks
-%                 if lookLeft >= 0
-%                     if lookLeft ~= prevLookLeft
-%                         newFixStart = eyetime - searchOnset; % finds when the new dwell started
-%                         if prevLookLeft == -1
-%                             fixStart = eyetime - searchOnset; %like a default
-%                         end
-%                     else
-%                         fixStart = newFixStart; % keeps the same fix start throughout the dwell
-%                         fixEnd = eyetime - searchOnset; %updates every time, until they change rois
-%                     end
-%                 end
-% 
-% 
-% 
-%                 % If they have completed the dwell, aka changed
-%                 % rois, then write down the previous fixation
-%                 % information into your own file. This is so that
-%                 % you have all your information in two places (the
-%                 % EDF and your matlab output). Hopefully you'll
-%                 % only need one.
-%                 if lookLeft ~= prevLookLeft && fixEnd ~= 0
-% 
-%                     % Write out the eye data to a file as it's
-%                     % happening, but only after a dwell has been
-%                     % completed  - also it says
-%                     % "prevLookLeft" here because we want
-%                     % what they were just looking at, not
-%                     % the roi they switched to
-%                     eyeLabel = '%d\t %d\t %d\t %d\t %d\t %d\t %4.3f\t %4.3f\n';
-%                     fprintf(eyeTrain1File, eyeLabel, ...
-%                         subjectNumber, TrialNum, phase, probSide, tgtSide, prevLookLeft, ...
-%                         fixStart, fixEnd);
-%                 end
-% 
-%                 % update the variables
-%                 prevLookLeft = lookLeft;
-% 
-%             end
-%         end
-
-        RestrictKeysForKbCheck([keyNumJ keyNumI keyNumL keyNumK]);
-
-        % checks first key press
-
-        keyCode = zeros(1, 256);
-        while ~keyCode(keyNumJ) && ~keyCode(keyNumI) && ~keyCode(keyNumL) && ~keyCode(keyNumK)
-            [~, ~, keyCode] = KbCheck(-1);
-        end
-
-        selectEnd = toc(selectStart);
-        select2Start = tic;
-        selectDataTable.firstResponse(trial) = selectEnd;
-        if keyCode(keyNumJ)
-            keyPressed(1) = 1;
-            selectDataTable.firstFood(trial) = rand4Img(trial, 1);
-            Screen('DrawTextures', w, topTex, [], topRect);
-            Screen('DrawTextures', w, botTex, [], botRect);
-            Screen('DrawTextures', w, rightTex, [], rightRect);
-            Screen('DrawTextures', w, leftTex, [], leftRect);
-            Screen('FrameRect', w, orange, leftRect, 4);
-            Screen('Flip', w);
-        elseif keyCode(keyNumI)
-            keyPressed(2) = 1;
-            selectDataTable.firstFood(trial) = rand4Img(trial, 2);
-            Screen('DrawTextures', w, topTex, [], topRect);
-            Screen('DrawTextures', w, botTex, [], botRect);
-            Screen('DrawTextures', w, rightTex, [], rightRect);
-            Screen('DrawTextures', w, leftTex, [], leftRect);
-            Screen('FrameRect', w, orange, topRect, 4);
-            Screen('Flip', w);
-        elseif keyCode(keyNumL)
-            keyPressed(3) = 1;
-            selectDataTable.firstFood(trial) = rand4Img(trial, 3);
-            Screen('DrawTextures', w, topTex, [], topRect);
-            Screen('DrawTextures', w, botTex, [], botRect);
-            Screen('DrawTextures', w, rightTex, [], rightRect);
-            Screen('DrawTextures', w, leftTex, [], leftRect);
-            Screen('FrameRect', w, orange, rightRect, 4);
-            Screen('Flip', w);
-        elseif keyCode(keyNumK)
-            keyPressed(4) = 1;
-            selectDataTable.firstFood(trial) = rand4Img(trial, 4);
-            Screen('DrawTextures', w, topTex, [], topRect);
-            Screen('DrawTextures', w, botTex, [], botRect);
-            Screen('DrawTextures', w, rightTex, [], rightRect);
-            Screen('DrawTextures', w, leftTex, [], leftRect);
-            Screen('FrameRect', w, orange, botRect, 4);
-            Screen('Flip', w);
-        end
-
-
-        RestrictKeysForKbCheck([]);
-        KbReleaseWait;
-
-        excludeKey = find(keyPressed);
-        restrictedKeys = [keyNumJ keyNumI keyNumL keyNumK];
-        restrictedKeys(excludeKey) = [];
-
-        keyCode2 = zeros(1, 256);
-        RestrictKeysForKbCheck(restrictedKeys);
-        while ~any(keyCode2(restrictedKeys))
-            [~, ~, keyCode2] = KbCheck(-1);
-        end
-        select2End = toc(select2Start);
-        selectDataTable.secondResponse(trial) = select2End;
-        if keyCode2(keyNumJ) && ~keyPressed(1)
-            keyPressed(1) = 1;
-            selectDataTable.secondFood(trial) = rand4Img(trial, 1);
-        elseif keyCode2(keyNumI) && ~keyPressed(2)
-            keyPressed(2) = 1;
-            selectDataTable.secondFood(trial) = rand4Img(trial, 2);
-        elseif keyCode2(keyNumL) && ~keyPressed(3)
-            keyPressed(3) = 1;
-            selectDataTable.secondFood(trial) = rand4Img(trial, 3);
-        elseif keyCode2 (keyNumK) && ~keyPressed(4)
-            keyPressed(4) = 1;
-            selectDataTable.secondFood(trial) = rand4Img(trial, 4);
-        end
-
-        Screen('DrawTextures', w, topTex, [], topRect);
-        Screen('DrawTextures', w, botTex, [], botRect);
-        Screen('DrawTextures', w, rightTex, [], rightRect);
-        Screen('DrawTextures', w, leftTex, [], leftRect);
-
-        if keyPressed(1)
-            Screen('FrameRect', w, orange, leftRect, 4);
-        end
-        if keyPressed(2)
-            Screen('FrameRect', w, orange, topRect, 4);
-        end
-        if keyPressed(3)
-            Screen('FrameRect', w, orange, rightRect, 4);
-        end
-        if keyPressed(4)
-            Screen('FrameRect', w, orange, botRect, 4);
-        end
-
+    % Run trials for current block
+    for trial = 1:nTrialsPerBlock
+        % Show fixation cross
+        Screen('DrawLines', w, allCoords, lineWidthPix, black, [xCenter yCenter], 2);
         Screen('Flip', w);
-        WaitSecs(0.3);
+        WaitSecs(0.4);
+        trialStart = tic;
+        if trackEye == 1
+            err = Eyelink('CheckRecording');
+            if err ~= 0
+                error('Problem with recording: %d', err);
+            end
+        end
+        % Prepare images for this trial
+        % Load and prepare the 4 images
+        topImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 2)}));
+        rightImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 3)}));
+        botImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 4)}));
+        leftImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 1)}));
 
-    end
-%% CHOOSE ONE
-for trial=1:trialN
+        % Resize and create textures
+        try
+            [images, rects] = prepareImages(w, topImg, rightImg, botImg, leftImg, wWidth, wHeight);
+        catch
+            sca;
+            psychrethrow(psychlasterror);
+        end
+        % Eye tracking trial setup
+        if trackEye == 1
+            lastROI = 0;
+            fixStartTime = GetSecs();
+            if trial == 1
+                blockStartTime = GetSecs();
+            end
 
-%     % Write the trial number out to the experimenter's computer
-%     % This isn't necessary, but it is nice to know whereabouts the
-%     % subject is in the study
-%     if trackEye == 1
-%         Eyelink('command', 'record_status_message "SEARCH TRIAL %d/%d"', trial, trialN);
-% 
-%         % put the headers into the eye tracking file
-%         % Again, not necessary, but really nice to already have headers
-%         if trial == 1
-%             eyeLabel = '%s\t %s\t %s\t %s\t %s\n';
-%             fprintf(eyeTrain1File, eyeLabel, ...
-%                 'subNum', 'trial', 'lookLeft', 'fixStart', 'fixEnd');
-%         end
-%  
-%         % start recording eye position (preceded by a short pause so that
-%         % the tracker can finish the mode transition)
-%         % The paramerters for the 'StartRecording' call controls the
-%         % file_samples, file_events, link_samples, link_events availability
-%         Eyelink('Command', 'set_idle_mode');
-%         WaitSecs(0.05);
-%         Eyelink('StartRecording');
-%         % record a few samples before we actually start displaying
-%         % otherwise you may lose a few msec of data
-%         WaitSecs(0.1);
+            % Start recording
+            Eyelink('command', 'record_status_message "TRIAL %d/%d"', trial, nTrialsPerBlock);
+            Eyelink('StartRecording');
+            WaitSecs(0.1);
 
+            Eyelink('Message', 'BLOCK_%d_TRIAL_%d', block, trial);
+            Eyelink('Message', 'TRIAL_CONDITION_%s', currentBlockType);
 
-    
-    % showing fixation cross
-    Screen('DrawLines', w, allCoords,...
-        lineWidthPix, black, [xCenter yCenter], 2);
+            % Mark trial start
+            Eyelink('Message', 'TRIALID %d', trial);
 
-    % Flip to the screen
-    Screen('Flip', w);
-    WaitSecs(0.4);
-    selectStart = tic;
-
-%     % used for syncing time, This will print "synctime_part1" into
-%     % the EDF at this timepoint. This is useful for keeping track
-%     % in the edf of when a trial starts, and what part of the study
-%     % it belongs to if you have several parts.
-%     Eyelink('Message', 'SYNCTIME_part1');
-%     % This is just telling us that the trial is valid (useful for
-%     % if you recallibrate during a trial, in which case this will
-%     % later be switched to 0 so you know to throw the trial out)
-%     Eyelink('Message', '!V TRIAL_VAR VALID_TRIAL %d', 1);
-% 
-%     eye_used = Eyelink('eyeavailable'); % get eye that's tracked
-
-    % creating rects for the 4 images
-
-    % top image
-    topImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 2)}));
-    [oTopImgHeight, oTopImgWidth, ~] = size(topImg);
-    topImgHeight = round(oTopImgHeight * 0.5);
-    topImgWidth = round(oTopImgWidth * 0.5);
-    newSizeT = [topImgHeight, topImgWidth];
-    topImg = imresize(topImg, newSizeT);
-
-    topTex = Screen('MakeTexture', w, topImg);
-    topXpos = (wWidth - topImgWidth) / 2;
-    topYpos = 0.07*wHeight;
-    topRect = [topXpos topYpos topXpos+topImgWidth topYpos+topImgHeight];
-
-    % right image
-    rightImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 3)}));
-    [oRightImgHeight, oRightImgWidth, ~] = size(rightImg);
-    rightImgHeight = round(oRightImgHeight * 0.5);
-    rightImgWidth = round(oRightImgWidth * 0.5);
-    newSizeR = [rightImgHeight, rightImgWidth];
-    rightImg = imresize(rightImg, newSizeR);
-
-    rightTex = Screen('MakeTexture', w, rightImg);
-    rightXpos = 0.7*wWidth;
-    rightYpos = (wHeight - rightImgHeight) / 2;
-    rightRect = [rightXpos rightYpos rightXpos+rightImgWidth rightYpos+rightImgHeight];
-
-    % bottom image
-    botImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 4)}));
-    [oBotImgHeight, oBotImgWidth, ~] = size(botImg);
-    botImgHeight = round(oBotImgHeight * 0.5);
-    botImgWidth = round(oBotImgWidth * 0.5);
-    newSizeB = [botImgHeight, botImgWidth];
-    botImg = imresize(botImg, newSizeB);
-
-    botTex = Screen('MakeTexture', w, botImg);
-    botXpos = (wWidth - botImgWidth) / 2;
-    botYpos = 0.7*wHeight;
-    botRect = [botXpos botYpos botXpos+botImgWidth botYpos+botImgHeight];
-
-
-    % left image
-    leftImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 1)}));
-    [oLeftImgHeight, oLeftImgWidth, ~] = size(leftImg);
-    leftImgHeight = round(oLeftImgHeight * 0.5);
-    leftImgWidth = round(oLeftImgWidth * 0.5);
-    newSizeL = [leftImgHeight, leftImgWidth];
-    leftImg = imresize(leftImg, newSizeL);
-
-    leftTex = Screen('MakeTexture', w, leftImg);
-    leftXpos = 0.2*wWidth;
-    leftYpos = (wHeight - leftImgHeight) / 2;
-    leftRect = [leftXpos leftYpos leftXpos+leftImgWidth leftYpos+leftImgHeight];
-
-    % Set up the two ROIs. The !V is asking for gaze/velocity
-    % information, IAREA RECTANGLE is the type of roi (it's a
-    % rectangle... but you can also change it to be IAREA ELLIPSE
-    % for circles or IAREA FREEHAND for an irregular shape.)
-    % The following "%d"s correspond to the following (for both
-    % rectangle and ellipse):
-    % 1: id #
-    % 2 & 3: top left (x,y)
-    % 4 & 5: bottom right (x,y)
-    % For freehand, the first one is still id #, the following are
-    % x,y coordinates for each outer portion of the ROI (only x,y pairs
-    % have a comma between them).
-    % The final %s corresponds to the label string you give your
-    % ROI. The examples below are two ROIs for the left and right
-    % side of the screen.
-%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 1,leftXpos, leftYpos, leftXpos+leftImgWidth, leftYpos+leftImgHeight, 'left');
-%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 2, topXpos, topYpos, topXpos+topImgWidth, topYpos+topImgHeight, 'top');
-%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 3, rightXpos, rightYpos, rightXpos+rightImgWidth, rightYpos+rightImgHeight, 'right');
-%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 4, botXpos, botYpos, botXpos+botImgWidth ,botYpos+botImgHeight, 'bottom');
-
-
-    % drawing all the images
-    Screen('DrawTextures', w, topTex, [], topRect);
-    Screen('DrawTextures', w, botTex, [], botRect);
-    Screen('DrawTextures', w, rightTex, [], rightRect);
-    Screen('DrawTextures', w, leftTex, [], leftRect);
-    [~, trialOnset, ~, ~, ~] = Screen('Flip', w, [], 1);
-
-    response = 0; % set default
-    lookLeft = -1; % set default
-    lookRight = -1;
-    lookUp = -1;
-    lookDown = -1;
-    prevLookLeft = -1; % set default
-    fixEnd = 0; % set default
-
-    while response == 0
-        keyPressed = zeros(1, 4);
-        % TO-DO: record which position they pressed
-        % J = 1, I = 2, L = 3, K = 4
-        % J = left, I = top, L = right, K = bottom
-
-        RestrictKeysForKbCheck([keyNumJ keyNumI keyNumL keyNumK]);
-
-        % checks first key press
-
-        keyCode = zeros(1, 256);
-        while ~keyCode(keyNumJ) && ~keyCode(keyNumI) && ~keyCode(keyNumL) && ~keyCode(keyNumK)
-            [~, ~, keyCode] = KbCheck(-1);
+            % Define ROIs
+            Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 1, rects.leftRect(1), rects.leftRect(2), rects.leftRect(3), rects.leftRect(4), 'left');
+            Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 2, rects.topRect(1), rects.topRect(2), rects.topRect(3), rects.topRect(4), 'top');
+            Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 3, rects.rightRect(1), rects.rightRect(2), rects.rightRect(3), rects.rightRect(4), 'right');
+            Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 4, rects.botRect(1), rects.botRect(2), rects.botRect(3), rects.botRect(4), 'bottom');
         end
 
-        selectEnd = toc(selectStart);
-        select2Start = tic;
-        selectDataTable.firstResponse(trial) = selectEnd;
-        if keyCode(keyNumJ)
-            keyPressed(1) = 1;
-            selectDataTable.firstFood(trial) = rand4Img(trial, 1);
-            Screen('DrawTextures', w, topTex, [], topRect);
-            Screen('DrawTextures', w, botTex, [], botRect);
-            Screen('DrawTextures', w, rightTex, [], rightRect);
-            Screen('DrawTextures', w, leftTex, [], leftRect);
-            Screen('FrameRect', w, orange, leftRect, 4);
-            Screen('Flip', w);
-        elseif keyCode(keyNumI)
-            keyPressed(2) = 1;
-            selectDataTable.firstFood(trial) = rand4Img(trial, 2);
-            Screen('DrawTextures', w, topTex, [], topRect);
-            Screen('DrawTextures', w, botTex, [], botRect);
-            Screen('DrawTextures', w, rightTex, [], rightRect);
-            Screen('DrawTextures', w, leftTex, [], leftRect);
-            Screen('FrameRect', w, orange, topRect, 4);
-            Screen('Flip', w);
-        elseif keyCode(keyNumL)
-            keyPressed(3) = 1;
-            selectDataTable.firstFood(trial) = rand4Img(trial, 3);
-            Screen('DrawTextures', w, topTex, [], topRect);
-            Screen('DrawTextures', w, botTex, [], botRect);
-            Screen('DrawTextures', w, rightTex, [], rightRect);
-            Screen('DrawTextures', w, leftTex, [], leftRect);
-            Screen('FrameRect', w, orange, rightRect, 4);
-            Screen('Flip', w);
-        elseif keyCode(keyNumK)
-            keyPressed(4) = 1;
-            selectDataTable.firstFood(trial) = rand4Img(trial, 4);
-            Screen('DrawTextures', w, topTex, [], topRect);
-            Screen('DrawTextures', w, botTex, [], botRect);
-            Screen('DrawTextures', w, rightTex, [], rightRect);
-            Screen('DrawTextures', w, leftTex, [], leftRect);
-            Screen('FrameRect', w, orange, botRect, 4);
-            Screen('Flip', w);
-        end
-
-
-    end
-end
-
-
-%% CHOOSE THREE
-for trial=1:trialN
-
-    % showing fixation cross
-    Screen('DrawLines', w, allCoords,...
-        lineWidthPix, black, [xCenter yCenter], 2);
-
-    % Flip to the screen
-    Screen('Flip', w);
-    WaitSecs(0.4);
-    selectStart = tic;
-
-%     % used for syncing time, This will print "synctime_part1" into
-%     % the EDF at this timepoint. This is useful for keeping track
-%     % in the edf of when a trial starts, and what part of the study
-%     % it belongs to if you have several parts.
-%     Eyelink('Message', 'SYNCTIME_part1');
-%     % This is just telling us that the trial is valid (useful for
-%     % if you recallibrate during a trial, in which case this will
-%     % later be switched to 0 so you know to throw the trial out)
-%     Eyelink('Message', '!V TRIAL_VAR VALID_TRIAL %d', 1);
-% 
-%     eye_used = Eyelink('eyeavailable'); % get eye that's tracked
-
-    % creating rects for the 4 images
-
-    % top image
-    topImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 2)}));
-    [oTopImgHeight, oTopImgWidth, ~] = size(topImg);
-    topImgHeight = round(oTopImgHeight * 0.5);
-    topImgWidth = round(oTopImgWidth * 0.5);
-    newSizeT = [topImgHeight, topImgWidth];
-    topImg = imresize(topImg, newSizeT);
-
-    topTex = Screen('MakeTexture', w, topImg);
-    topXpos = (wWidth - topImgWidth) / 2;
-    topYpos = 0.07*wHeight;
-    topRect = [topXpos topYpos topXpos+topImgWidth topYpos+topImgHeight];
-
-    % right image
-    rightImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 3)}));
-    [oRightImgHeight, oRightImgWidth, ~] = size(rightImg);
-    rightImgHeight = round(oRightImgHeight * 0.5);
-    rightImgWidth = round(oRightImgWidth * 0.5);
-    newSizeR = [rightImgHeight, rightImgWidth];
-    rightImg = imresize(rightImg, newSizeR);
-
-    rightTex = Screen('MakeTexture', w, rightImg);
-    rightXpos = 0.7*wWidth;
-    rightYpos = (wHeight - rightImgHeight) / 2;
-    rightRect = [rightXpos rightYpos rightXpos+rightImgWidth rightYpos+rightImgHeight];
-
-    % bottom image
-    botImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 4)}));
-    [oBotImgHeight, oBotImgWidth, ~] = size(botImg);
-    botImgHeight = round(oBotImgHeight * 0.5);
-    botImgWidth = round(oBotImgWidth * 0.5);
-    newSizeB = [botImgHeight, botImgWidth];
-    botImg = imresize(botImg, newSizeB);
-
-    botTex = Screen('MakeTexture', w, botImg);
-    botXpos = (wWidth - botImgWidth) / 2;
-    botYpos = 0.7*wHeight;
-    botRect = [botXpos botYpos botXpos+botImgWidth botYpos+botImgHeight];
-
-
-    % left image
-    leftImg = imread(fullfile(folderPath, imageFileNames{rand4Img(trial, 1)}));
-    [oLeftImgHeight, oLeftImgWidth, ~] = size(leftImg);
-    leftImgHeight = round(oLeftImgHeight * 0.5);
-    leftImgWidth = round(oLeftImgWidth * 0.5);
-    newSizeL = [leftImgHeight, leftImgWidth];
-    leftImg = imresize(leftImg, newSizeL);
-
-    leftTex = Screen('MakeTexture', w, leftImg);
-    leftXpos = 0.2*wWidth;
-    leftYpos = (wHeight - leftImgHeight) / 2;
-    leftRect = [leftXpos leftYpos leftXpos+leftImgWidth leftYpos+leftImgHeight];
-
-    % Set up the two ROIs. The !V is asking for gaze/velocity
-    % information, IAREA RECTANGLE is the type of roi (it's a
-    % rectangle... but you can also change it to be IAREA ELLIPSE
-    % for circles or IAREA FREEHAND for an irregular shape.)
-    % The following "%d"s correspond to the following (for both
-    % rectangle and ellipse):
-    % 1: id #
-    % 2 & 3: top left (x,y)
-    % 4 & 5: bottom right (x,y)
-    % For freehand, the first one is still id #, the following are
-    % x,y coordinates for each outer portion of the ROI (only x,y pairs
-    % have a comma between them).
-    % The final %s corresponds to the label string you give your
-    % ROI. The examples below are two ROIs for the left and right
-    % side of the screen.
-%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 1,leftXpos, leftYpos, leftXpos+leftImgWidth, leftYpos+leftImgHeight, 'left');
-%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 2, topXpos, topYpos, topXpos+topImgWidth, topYpos+topImgHeight, 'top');
-%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 3, rightXpos, rightYpos, rightXpos+rightImgWidth, rightYpos+rightImgHeight, 'right');
-%     Eyelink('Message', '!V IAREA RECTANGLE %d %d %d %d %d %s', 4, botXpos, botYpos, botXpos+botImgWidth ,botYpos+botImgHeight, 'bottom');
-
-
-    % drawing all the images
-    Screen('DrawTextures', w, topTex, [], topRect);
-    Screen('DrawTextures', w, botTex, [], botRect);
-    Screen('DrawTextures', w, rightTex, [], rightRect);
-    Screen('DrawTextures', w, leftTex, [], leftRect);
-    [~, trialOnset, ~, ~, ~] = Screen('Flip', w, [], 1);
-
-    response = 0; % set default
-    lookLeft = -1; % set default
-    lookRight = -1;
-    lookUp = -1;
-    lookDown = -1;
-    prevLookLeft = -1; % set default
-    fixEnd = 0; % set default
-
-    while response == 0
-        keyPressed = zeros(1, 4);
-        % TO-DO: record which position they pressed
-        % J = 1, I = 2, L = 3, K = 4
-        % J = left, I = top, L = right, K = bottom
-
-        RestrictKeysForKbCheck([keyNumJ keyNumI keyNumL keyNumK]);
-
-        % checks first key press
-
-        keyCode = zeros(1, 256);
-        while ~keyCode(keyNumJ) && ~keyCode(keyNumI) && ~keyCode(keyNumL) && ~keyCode(keyNumK)
-            [~, ~, keyCode] = KbCheck(-1);
-        end
-
-        selectEnd = toc(selectStart);
-        select2Start = tic;
-        selectDataTable.firstResponse(trial) = selectEnd;
-        if keyCode(keyNumJ)
-            keyPressed(1) = 1;
-            selectDataTable.firstFood(trial) = rand4Img(trial, 1);
-            Screen('DrawTextures', w, topTex, [], topRect);
-            Screen('DrawTextures', w, botTex, [], botRect);
-            Screen('DrawTextures', w, rightTex, [], rightRect);
-            Screen('DrawTextures', w, leftTex, [], leftRect);
-            Screen('FrameRect', w, orange, leftRect, 4);
-            Screen('Flip', w);
-        elseif keyCode(keyNumI)
-            keyPressed(2) = 1;
-            selectDataTable.firstFood(trial) = rand4Img(trial, 2);
-            Screen('DrawTextures', w, topTex, [], topRect);
-            Screen('DrawTextures', w, botTex, [], botRect);
-            Screen('DrawTextures', w, rightTex, [], rightRect);
-            Screen('DrawTextures', w, leftTex, [], leftRect);
-            Screen('FrameRect', w, orange, topRect, 4);
-            Screen('Flip', w);
-        elseif keyCode(keyNumL)
-            keyPressed(3) = 1;
-            selectDataTable.firstFood(trial) = rand4Img(trial, 3);
-            Screen('DrawTextures', w, topTex, [], topRect);
-            Screen('DrawTextures', w, botTex, [], botRect);
-            Screen('DrawTextures', w, rightTex, [], rightRect);
-            Screen('DrawTextures', w, leftTex, [], leftRect);
-            Screen('FrameRect', w, orange, rightRect, 4);
-            Screen('Flip', w);
-        elseif keyCode(keyNumK)
-            keyPressed(4) = 1;
-            selectDataTable.firstFood(trial) = rand4Img(trial, 4);
-            Screen('DrawTextures', w, topTex, [], topRect);
-            Screen('DrawTextures', w, botTex, [], botRect);
-            Screen('DrawTextures', w, rightTex, [], rightRect);
-            Screen('DrawTextures', w, leftTex, [], leftRect);
-            Screen('FrameRect', w, orange, botRect, 4);
-            Screen('Flip', w);
-        end
-
-
-        RestrictKeysForKbCheck([]);
-        KbReleaseWait;
-
-        excludeKey = find(keyPressed);
-        restrictedKeys = [keyNumJ keyNumI keyNumL keyNumK];
-        restrictedKeys(excludeKey) = [];
-
-        keyCode2 = zeros(1, 256);
-        RestrictKeysForKbCheck(restrictedKeys);
-        while ~any(keyCode2(restrictedKeys))
-            [~, ~, keyCode2] = KbCheck(-1);
-        end
-        select2End = toc(select2Start);
-        select3Start = tic;
-        selectDataTable.secondResponse(trial) = select2End;
-        if keyCode2(keyNumJ) && ~keyPressed(1)
-            keyPressed(1) = 1;
-            selectDataTable.secondFood(trial) = rand4Img(trial, 1);
-        elseif keyCode2(keyNumI) && ~keyPressed(2)
-            keyPressed(2) = 1;
-            selectDataTable.secondFood(trial) = rand4Img(trial, 2);
-        elseif keyCode2(keyNumL) && ~keyPressed(3)
-            keyPressed(3) = 1;
-            selectDataTable.secondFood(trial) = rand4Img(trial, 3);
-        elseif keyCode2(keyNumK) && ~keyPressed(4)
-            keyPressed(4) = 1;
-            selectDataTable.secondFood(trial) = rand4Img(trial, 4);
-        end
-
-        Screen('DrawTextures', w, topTex, [], topRect);
-        Screen('DrawTextures', w, botTex, [], botRect);
-        Screen('DrawTextures', w, rightTex, [], rightRect);
-        Screen('DrawTextures', w, leftTex, [], leftRect);
-
-        if keyPressed(1)
-            Screen('FrameRect', w, orange, leftRect, 4);
-        end
-        if keyPressed(2)
-            Screen('FrameRect', w, orange, topRect, 4);
-        end
-        if keyPressed(3)
-            Screen('FrameRect', w, orange, rightRect, 4);
-        end
-        if keyPressed(4)
-            Screen('FrameRect', w, orange, botRect, 4);
-        end
-
-        RestrictKeysForKbCheck([]);
-        KbReleaseWait;
-
-        excludeKey = find(keyPressed);
-        restrictedKeys = [keyNumJ keyNumI keyNumL keyNumK];
-        restrictedKeys(excludeKey) = [];
-
-        keyCode3 = zeros(1, 256);
-        RestrictKeysForKbCheck(restrictedKeys);
-        while ~any(keyCode3(restrictedKeys))
-            [~, ~, keyCode3] = KbCheck(-1);
-        end
-        select3End = toc(select3Start);
-        selectDataTable.secondResponse(trial) = select3End;
-        if keyCode3(keyNumJ) && ~keyPressed(1)
-            keyPressed(1) = 1;
-            selectDataTable.secondFood(trial) = rand4Img(trial, 1);
-        elseif keyCode3(keyNumI) && ~keyPressed(2)
-            keyPressed(2) = 1;
-            selectDataTable.secondFood(trial) = rand4Img(trial, 2);
-        elseif keyCode3(keyNumL) && ~keyPressed(3)
-            keyPressed(3) = 1;
-            selectDataTable.secondFood(trial) = rand4Img(trial, 3);
-        elseif keyCode3(keyNumK) && ~keyPressed(4)
-            keyPressed(4) = 1;
-            selectDataTable.secondFood(trial) = rand4Img(trial, 4);
-        end
-
-        Screen('DrawTextures', w, topTex, [], topRect);
-        Screen('DrawTextures', w, botTex, [], botRect);
-        Screen('DrawTextures', w, rightTex, [], rightRect);
-        Screen('DrawTextures', w, leftTex, [], leftRect);
-
-        if keyPressed(1)
-            Screen('FrameRect', w, orange, leftRect, 4);
-        end
-        if keyPressed(2)
-            Screen('FrameRect', w, orange, topRect, 4);
-        end
-        if keyPressed(3)
-            Screen('FrameRect', w, orange, rightRect, 4);
-        end
-        if keyPressed(4)
-            Screen('FrameRect', w, orange, botRect, 4);
-        end
-
+        % Draw initial image display
+        % Screen('DrawTextures', w, [images.topTex, images.botTex, images.rightTex, images.leftTex], [], ...
+        %     [rects.topRect; rects.botRect; rects.rightRect; rects.leftRect]');
+        Screen('DrawTextures', w, [images.leftTex, images.topTex, images.rightTex, images.botTex], [], ...
+            [rects.leftRect; rects.topRect; rects.rightRect; rects.botRect]');
         Screen('Flip', w);
-        WaitSecs(0.3);
-        response = 1;
 
+        % Initialize response collection
+        response = 0;
+        keyPressed = zeros(1, 4);
+        nRequired = str2double(currentBlockType(end)); % Get number of required choices
+        nSelected = 0;
+
+        % Collect responses
+        while nSelected < nRequired
+            % Add eye tracking sample collection here
+            if trackEye == 1
+                if Eyelink('NewFloatSampleAvailable') > 0
+                    % Get the sample in the form of an event structure
+                    evt = Eyelink('NewestFloatSample');
+                    if evt.gx(eye_used+1) ~= el.MISSING_DATA && evt.gy(eye_used+1) ~= el.MISSING_DATA
+                        eyeX = evt.gx(eye_used+1);
+                        eyeY = evt.gy(eye_used+1);
+
+                        % Check which ROI the gaze is in
+                        currentROI = 0;
+                        if IsInRect(eyeX, eyeY, rects.leftRect)
+                            currentROI = 1;
+                        elseif IsInRect(eyeX, eyeY, rects.topRect)
+                            currentROI = 2;
+                        elseif IsInRect(eyeX, eyeY, rects.rightRect)
+                            currentROI = 3;
+                        elseif IsInRect(eyeX, eyeY, rects.botRect)
+                            currentROI = 4;
+                        end
+
+                        % Record fixation data
+                        if currentROI ~= lastROI
+                            fixEndTime = GetSecs();
+                            if lastROI > 0
+                                fixDur = fixEndTime - fixStartTime;
+                                fprintf(eyeFile, '%d\t%d\t%.3f\t%d\t%.3f\n', ...
+                                    block, trial, fixStartTime - blockStartTime, lastROI, fixDur);
+                            end
+                            if currentROI > 0
+                                fixStartTime = fixEndTime;
+                            end
+                            lastROI = currentROI;
+                        end
+                    end
+                end
+            end
+            % Check for key press
+            [keyIsDown, secs, keyCode] = KbCheck(-1);
+            if keyIsDown
+                if keyCode(keyNumJ) && ~keyPressed(1)
+                    keyPressed(1) = 1;
+                    nSelected = nSelected + 1;
+                    % Record response based on block type
+                    switch nSelected
+                        case 1
+                            firstFood = rand4Img(trial, 1);
+                            firstResponse = toc(trialStart);
+                        case 2
+                            secondFood = rand4Img(trial, 1);
+                            secondResponse = toc(trialStart);
+                        case 3
+                            thirdFood = rand4Img(trial, 1);
+                            thirdResponse = toc(trialStart);
+                    end
+                elseif keyCode(keyNumI) && ~keyPressed(2)
+                    keyPressed(2) = 1;
+                    nSelected = nSelected + 1;
+                    % Record response based on block type
+                    switch nSelected
+                        case 1
+                            firstFood = rand4Img(trial, 2);  % Note: 2 for top image
+                            firstResponse = toc(trialStart);
+                        case 2
+                            secondFood = rand4Img(trial, 2);
+                            secondResponse = toc(trialStart);
+                        case 3
+                            thirdFood = rand4Img(trial, 2);
+                            thirdResponse = toc(trialStart);
+                    end
+                elseif keyCode(keyNumL) && ~keyPressed(3)
+                    keyPressed(3) = 1;
+                    nSelected = nSelected + 1;
+                    % Record response based on block type
+                    switch nSelected
+                        case 1
+                            firstFood = rand4Img(trial, 3);  % Note: 3 for right image
+                            firstResponse = toc(trialStart);
+                        case 2
+                            secondFood = rand4Img(trial, 3);
+                            secondResponse = toc(trialStart);
+                        case 3
+                            thirdFood = rand4Img(trial, 3);
+                            thirdResponse = toc(trialStart);
+                    end
+                elseif keyCode(keyNumK) && ~keyPressed(4)
+                    keyPressed(4) = 1;
+                    nSelected = nSelected + 1;
+                    % Record response based on block type
+                    switch nSelected
+                        case 1
+                            firstFood = rand4Img(trial, 4);  % Note: 4 for bottom image
+                            firstResponse = toc(trialStart);
+                        case 2
+                            secondFood = rand4Img(trial, 4);
+                            secondResponse = toc(trialStart);
+                        case 3
+                            thirdFood = rand4Img(trial, 4);
+                            thirdResponse = toc(trialStart);
+                    end
+                elseif keyCode(escKey)
+                    ListenChar(0);
+                    sca;
+                    error('User terminated script with ESCAPE key.');
+                end
+
+                % Redraw images with selected items highlighted
+                % Screen('DrawTextures', w, [images.topTex, images.botTex, images.rightTex, images.leftTex], [], ...
+                %     [rects.topRect; rects.botRect; rects.rightRect; rects.leftRect]');
+                Screen('DrawTextures', w, [images.leftTex, images.topTex, images.rightTex, images.botTex], [], ...
+                    [rects.leftRect; rects.topRect; rects.rightRect; rects.botRect]');
+
+                % Draw orange frames around selected images
+                if keyPressed(1)
+                    Screen('FrameRect', w, orange, rects.leftRect, 4);
+                end
+                if keyPressed(2)
+                    Screen('FrameRect', w, orange, rects.topRect, 4);
+                end
+                if keyPressed(3)
+                    Screen('FrameRect', w, orange, rects.rightRect, 4);
+                end
+                if keyPressed(4)
+                    Screen('FrameRect', w, orange, rects.botRect, 4);
+                end
+
+                Screen('Flip', w);
+                WaitSecs(0.3); % Brief pause after selection
+            end
+        end
+
+        % Store trial data based on block type
+        switch currentBlockType
+            case 'choose1'
+                choose1Data.firstFood(trial) = firstFood;
+                choose1Data.firstResponse(trial) = firstResponse;
+            case 'choose2'
+                choose2Data.firstFood(trial) = firstFood;
+                choose2Data.firstResponse(trial) = firstResponse;
+                choose2Data.secondFood(trial) = secondFood;
+                choose2Data.secondResponse(trial) = secondResponse;
+            case 'choose3'
+                choose3Data.firstFood(trial) = firstFood;
+                choose3Data.firstResponse(trial) = firstResponse;
+                choose3Data.secondFood(trial) = secondFood;
+                choose3Data.secondResponse(trial) = secondResponse;
+                choose3Data.thirdFood(trial) = thirdFood;
+                choose3Data.thirdResponse(trial) = thirdResponse;
+        end
+        % Eye tracking cleanup
+        if trackEye == 1
+            % Record final fixation of trial
+            if lastROI > 0
+                fixDur = GetSecs() - fixStartTime;
+                fprintf(eyeFile, '%d\t%d\t%.3f\t%d\t%.3f\n', ...
+                    block, trial, fixStartTime - blockStartTime, lastROI, fixDur);
+            end
+            Eyelink('StopRecording');
+        end
+        % Clean up textures
+        Screen('Close', [images.topTex, images.botTex, images.rightTex, images.leftTex]);
+
+        % Break every 50 trials
+        if mod(trial, 50) == 0 && trial < nTrialsPerBlock
+            DrawFormattedText(w, ['You may take a short break.\n\n' ...
+                'Press SPACE when you are ready to continue.'], 'center', 'center', textColor);
+            Screen('Flip', w);
+            KbStrokeWait;
+        end
     end
 end
-
+% Save data
+try
+    %    save(['Subject_' num2str(subjectNumber) '_BlockData.mat'], 'choose1Data', 'choose2Data', 'choose3Data');
+    save(['Subject_' num2str(subjectNumber) '_Data.mat'], 'dataTable', 'choose1Data', 'choose2Data', 'choose3Data');
+catch
+    warning('Could not save data file. Check permissions and disk space.');
+end
 
 %% EXIT %%
-
 % displaying thank you screen
 Screen('FillRect', w, backgroundColor);
-DrawFormattedText(w, 'Thank you!', 'center', 'center', textColor); 
+DrawFormattedText(w, 'Thank you!', 'center', 'center', textColor);
 Screen('Flip', w);
 RestrictKeysForKbCheck(keyNumSpace); % disregard all keys except space
 KbPressWait(-1); % wait till space is pressed
 
 if trackEye == 1
-        Eyelink('CloseFile');
-        Eyelink('ReceiveFile');
-        Eyelink('ShutDown');
+    fclose(eyeFile);
+    Eyelink('CloseFile');
+    Eyelink('ReceiveFile');
+    Eyelink('ShutDown');
 end
 
-sca % close psychtoolbox windows
+sca % close Psychtoolbox windows
 ListenChar(1); % restore keyboard input
 
+%% Helper function to prepare images
+function [images, rects] = prepareImages(w, topImg, rightImg, botImg, leftImg, wWidth, wHeight)
+% Resize images
+[images.top, rects.topRect] = resizeImage(topImg, wWidth, wHeight, 'top');
+[images.right, rects.rightRect] = resizeImage(rightImg, wWidth, wHeight, 'right');
+[images.bot, rects.botRect] = resizeImage(botImg, wWidth, wHeight, 'bottom');
+[images.left, rects.leftRect] = resizeImage(leftImg, wWidth, wHeight, 'left');
 
+% Create textures
+images.topTex = Screen('MakeTexture', w, images.top);
+images.rightTex = Screen('MakeTexture', w, images.right);
+images.botTex = Screen('MakeTexture', w, images.bot);
+images.leftTex = Screen('MakeTexture', w, images.left);
+end
 
+function [resizedImg, rect] = resizeImage(img, wWidth, wHeight, position)
+scaleFactor = 0.5;
+[oHeight, oWidth, ~] = size(img);
+newHeight = round(oHeight * scaleFactor);
+newWidth = round(oWidth * scaleFactor);
+resizedImg = imresize(img, [newHeight newWidth]);
 
+% Position-specific rectangles
+switch position
+    case 'top'
+        xPos = (wWidth - newWidth) / 2;
+        yPos = 0.07 * wHeight;
+    case 'right'
+        xPos = 0.7 * wWidth;
+        yPos = (wHeight - newHeight) / 2;
+    case 'bottom'
+        xPos = (wWidth - newWidth) / 2;
+        yPos = 0.7 * wHeight;
+    case 'left'
+        xPos = 0.2 * wWidth;
+        yPos = (wHeight - newHeight) / 2;
+end
+
+rect = [xPos yPos xPos+newWidth yPos+newHeight];
+end
+
+function cleanup
+% Cleanup function to handle errors
+sca;
+global trackEye;
+
+if trackEye == 1
+    Eyelink('ShutDown');
+end
+ListenChar(1);
+end
